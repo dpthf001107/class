@@ -1,0 +1,149 @@
+# ========================================
+# Production 환경 설정 (Neon PostgreSQL + Upstash Redis)
+# ========================================
+# 
+# 환경 변수는 .env 파일에서 관리
+# 프로파일: spring.profiles.active=production
+# ========================================
+
+spring:
+  # ========================================
+  # Neon PostgreSQL 설정
+  # ========================================
+  datasource:
+    # Neon PostgreSQL 연결 URL
+    # 형식: jdbc:postgresql://[HOST]/[DATABASE]?sslmode=require
+    url: jdbc:postgresql://${NEON_DB_HOST:ep-withered-pond-a11avi67.ap-southeast-1.aws.neon.tech}/${NEON_DB_NAME:aifixrdb}?sslmode=require
+    
+    # Neon 사용자 인증 정보
+    username: ${NEON_DB_USER:neondb_owner}
+    password: ${NEON_DB_PASSWORD:}
+    
+    # PostgreSQL 드라이버
+    driver-class-name: org.postgresql.Driver
+    
+    # HikariCP 연결 풀 설정 (Neon 최적화)
+    hikari:
+      # 최소 연결 수 (Neon Free: 최대 2 CU)
+      minimum-idle: 2
+      
+      # 최대 연결 수 (Neon Free: 제한적)
+      maximum-pool-size: 5
+      
+      # 연결 타임아웃 (30초)
+      connection-timeout: 30000
+      
+      # 유휴 연결 타임아웃 (10분)
+      idle-timeout: 600000
+      
+      # 최대 수명 (30분)
+      max-lifetime: 1800000
+      
+      # 연결 테스트 쿼리
+      connection-test-query: SELECT 1
+      
+      # 풀 이름
+      pool-name: NeonHikariPool
+      
+      # 자동 커밋
+      auto-commit: true
+      
+      # 연결 초기화 SQL
+      connection-init-sql: SELECT 1
+
+  # ========================================
+  # Upstash Redis 설정
+  # ========================================
+  data:
+    redis:
+      # Upstash Redis 연결 정보
+      host: ${UPSTASH_REDIS_HOST:your-endpoint.upstash.io}
+      port: ${UPSTASH_REDIS_PORT:6379}
+      password: ${UPSTASH_REDIS_PASSWORD:}
+      
+      # SSL 설정 (Upstash는 TLS 필수)
+      ssl:
+        enabled: true
+      
+      # 타임아웃 설정
+      timeout: 3000ms
+      connect-timeout: 3000ms
+      
+      # Lettuce 클라이언트 설정 (Spring Boot 기본)
+      lettuce:
+        pool:
+          # 최소 유휴 연결
+          min-idle: 2
+          
+          # 최대 유휴 연결
+          max-idle: 5
+          
+          # 최대 활성 연결
+          max-active: 10
+          
+          # 연결 대기 시간
+          max-wait: 3000ms
+        
+        # Shutdown 타임아웃
+        shutdown-timeout: 100ms
+
+  # ========================================
+  # JPA/Hibernate 설정
+  # ========================================
+  jpa:
+    # Hibernate DDL 자동 생성 (운영: validate, 개발: update)
+    hibernate:
+      ddl-auto: ${JPA_DDL_AUTO:validate}
+    
+    # SQL 로깅
+    show-sql: ${JPA_SHOW_SQL:false}
+    
+    # SQL 포맷팅
+    properties:
+      hibernate:
+        format_sql: true
+        use_sql_comments: true
+        
+        # PostgreSQL 방언
+        dialect: org.hibernate.dialect.PostgreSQLDialect
+        
+        # 배치 처리
+        jdbc:
+          batch_size: 20
+        order_inserts: true
+        order_updates: true
+        
+        # 쿼리 캐시
+        cache:
+          use_second_level_cache: false
+          use_query_cache: false
+        
+        # 통계
+        generate_statistics: false
+
+# ========================================
+# 로깅 설정
+# ========================================
+logging:
+  level:
+    # SQL 로깅
+    org.hibernate.SQL: ${SQL_LOG_LEVEL:INFO}
+    org.hibernate.type.descriptor.sql.BasicBinder: ${SQL_PARAM_LOG_LEVEL:INFO}
+    
+    # 연결 풀 로깅
+    com.zaxxer.hikari: INFO
+    
+    # PostgreSQL 드라이버 로깅
+    org.postgresql: INFO
+
+# ========================================
+# Actuator Health Check (Neon 연결 확인)
+# ========================================
+management:
+  health:
+    db:
+      enabled: true
+  endpoint:
+    health:
+      show-details: always
+

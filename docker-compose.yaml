@@ -1,0 +1,251 @@
+services:
+  # ========================================
+  # Database & Cache
+  # ========================================
+  db:
+    image: postgres:17-alpine
+    container_name: aifixr
+    environment:
+      - POSTGRES_DB=aifixrdb
+      - POSTGRES_USER=aifixr
+      - POSTGRES_PASSWORD=Aifixr0930!
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+    networks:
+      - aifixr-network
+    restart: unless-stopped
+
+  redis:
+    image: redis:7-alpine
+    container_name: redis
+    ports:
+      - "6379:6379"
+    command: redis-server --appendonly yes --requirepass ${REDIS_PASSWORD:-Redis0930!}
+    volumes:
+      - redis-data:/data
+    networks:
+      aifixr-network:
+        aliases:
+          - redis.local
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 3s
+      retries: 5
+      start_period: 10s
+
+  # ========================================
+  # Spring Cloud Gateway
+  # ========================================
+  gateway:
+    build:
+      context: ./api.aifixr.site
+      dockerfile: ./gateway/Dockerfile
+    container_name: gateway
+    ports:
+      - "8080:8080"
+    env_file:
+      - .env
+    environment:
+      - REDIS_HOST=${UPSTASH_REDIS_HOST}
+      - REDIS_PORT=${UPSTASH_REDIS_PORT:-6379}
+      - REDIS_PASSWORD=${UPSTASH_REDIS_PASSWORD}
+      - REDIS_SSL_ENABLED=true
+    networks:
+      aifixr-network:
+        aliases:
+          - gateway.local
+    restart: unless-stopped
+
+  # ========================================
+  # Spring Services
+  # ========================================
+  common-service:
+    build:
+      context: .
+      dockerfile: ./core.aifixr.site/common/Dockerfile
+    container_name: common
+    ports:
+      - "8101:8080"
+    depends_on:
+      - redis
+    env_file:
+      - .env
+    environment:
+      - REDIS_HOST=redis
+      - REDIS_PORT=6379
+      - REDIS_PASSWORD=${REDIS_PASSWORD:-Redis0930!}
+    networks:
+      aifixr-network:
+        aliases:
+          - common.local
+    restart: unless-stopped
+
+  environment-service:
+    build:
+      context: .
+      dockerfile: ./core.aifixr.site/environment/Dockerfile
+    container_name: environment
+    ports:
+      - "8105:8080"
+    depends_on:
+      - redis
+    env_file:
+      - .env
+    environment:
+      - REDIS_HOST=redis
+      - REDIS_PORT=6379
+      - REDIS_PASSWORD=${REDIS_PASSWORD:-Redis0930!}
+    networks:
+      aifixr-network:
+        aliases:
+          - environment.local
+    restart: unless-stopped
+
+  social-service:
+    build:
+      context: .
+      dockerfile: ./core.aifixr.site/social/Dockerfile
+    container_name: social
+    ports:
+      - "8106:8080"
+    depends_on:
+      - redis
+    env_file:
+      - .env
+    environment:
+      - REDIS_HOST=redis
+      - REDIS_PORT=6379
+      - REDIS_PASSWORD=${REDIS_PASSWORD:-Redis0930!}
+    networks:
+      aifixr-network:
+        aliases:
+          - social.local
+    restart: unless-stopped
+
+  governance-service:
+    build:
+      context: .
+      dockerfile: ./core.aifixr.site/governance/Dockerfile
+    container_name: governance
+    ports:
+      - "8107:8080"
+    depends_on:
+      - redis
+    env_file:
+      - .env
+    environment:
+      - REDIS_HOST=redis
+      - REDIS_PORT=6379
+      - REDIS_PASSWORD=${REDIS_PASSWORD:-Redis0930!}
+    networks:
+      aifixr-network:
+        aliases:
+          - governance.local
+    restart: unless-stopped
+
+  user-service:
+    build:
+      context: .
+      dockerfile: ./core.aifixr.site/user/Dockerfile
+    container_name: user
+    ports:
+      - "8104:8080"
+    depends_on:
+      - redis
+    env_file:
+      - .env
+    environment:
+      - REDIS_HOST=redis
+      - REDIS_PORT=6379
+      - REDIS_PASSWORD=${REDIS_PASSWORD:-Redis0930!}
+    networks:
+      aifixr-network:
+        aliases:
+          - user.local
+    restart: unless-stopped
+
+  oauth-service:
+    build:
+      context: .
+      dockerfile: ./core.aifixr.site/oauthservice/Dockerfile
+    container_name: oauth-service
+    ports:
+      - "8085:8085"
+    depends_on:
+      - db
+    env_file:
+      - .env
+    environment:
+      - SPRING_PROFILES_ACTIVE=production
+    networks:
+      aifixr-network:
+        aliases:
+          - oauth.local
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:8085/actuator/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+
+  # ========================================
+  # FastAPI Services (AI/ML)
+  # ========================================
+  crawler-service:
+    build:
+      context: ./ai.aifixr.site/feed/crawlerservice
+      dockerfile: Dockerfile
+    ports:
+      - "9001:9001"
+    container_name: crawler-service
+    networks:
+      aifixr-network:
+        aliases:
+          - crawler.local
+    restart: unless-stopped
+
+  chatbot-service:
+    build:
+      context: ./ai.aifixr.site/rag/chatbotservice
+      dockerfile: Dockerfile
+    ports:
+      - "9002:9002"
+    container_name: chatbot-service
+    networks:
+      aifixr-network:
+        aliases:
+          - chatbot.local
+    restart: unless-stopped
+
+  titanic-service:
+    build:
+      context: ./ai.aifixr.site/titanicservice
+      dockerfile: Dockerfile
+    ports:
+      - "9003:9003"
+    container_name: titanic-service
+    networks:
+      aifixr-network:
+        aliases:
+          - titanic.local
+    restart: unless-stopped
+
+# ========================================
+# Networks
+# ========================================
+networks:
+  aifixr-network:
+    driver: bridge
+
+# ========================================
+# Volumes
+# ========================================
+volumes:
+  postgres-data:
+  redis-data:
+

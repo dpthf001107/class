@@ -1,0 +1,4 @@
+rootProject.name = 'spring-server'
+
+// Gateway module
+include 'gateway'

@@ -1,0 +1,10 @@
+rootProject.name = 'core-services'
+
+// Service modules
+include 'common'
+include 'user'
+include 'environment'
+include 'social'
+include 'governance'
+include 'oauthservice'
+
