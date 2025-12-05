@@ -222,17 +222,17 @@ services:
           - chatbot.local
     restart: unless-stopped
 
-  titanic-service:
+  ml-service:
     build:
-      context: ./ai.aifixr.site/titanicservice
+      context: ./ai.aifixr.site/mlservice
       dockerfile: Dockerfile
     ports:
       - "9003:9003"
-    container_name: titanic-service
+    container_name: ml-service
     networks:
       aifixr-network:
         aliases:
-          - titanic.local
+          - ml-service.local
     restart: unless-stopped
 
 # ========================================

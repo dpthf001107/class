@@ -78,9 +78,6 @@ feature-ys/
 │   └── components/
 │       └── LoginModal.tsx
 │
-├── sme.aifixr.site/              # SME용 프론트엔드 (포트 3002)
-│   └── (www.aifixr.site와 동일 구조)
-│
 ├── docker-compose.yaml           # 통합 Docker Compose
 ├── .env                          # 통합 환경 변수
 └── application-production.yaml   # Neon/Upstash 설정
@@ -164,11 +161,11 @@ feature-ys/
 └──────┬──────┘
        │
        │ 12. Redirect to frontend
-       │     http://localhost:3002/oauth/google/callback
+       │     http://localhost:3000/oauth/google/callback
        ▼
 ┌──────────────────┐
 │  Frontend        │
-│  (Port 3002)     │
+│  (Port 3000)     │
 └──────────────────┘
 ```
 
@@ -185,7 +182,7 @@ feature-ys/
    - JWT 토큰 생성
    - 사용자 정보 관리
 
-3. **Frontend** (Port 3000, 3002, etc.)
+3. **Frontend** (Port 3000)
    - 사용자 인터페이스
    - OAuth 콜백 처리
    - 토큰 저장 및 관리
@@ -322,7 +319,7 @@ google:
   client-id: ${GOOGLE_CLIENT_ID}
   client-secret: ${GOOGLE_CLIENT_SECRET}
   redirect-uri: ${GOOGLE_REDIRECT_URI:http://localhost:8080/oauth/google/callback}
-  frontend-redirect-uri: ${GOOGLE_FRONTEND_REDIRECT_URI:http://localhost:3002/oauth/google/callback}
+  frontend-redirect-uri: ${GOOGLE_FRONTEND_REDIRECT_URI:http://localhost:3000/oauth/google/callback}
 
 # JWT 설정
 jwt:
@@ -475,7 +472,7 @@ export default function GoogleCallbackPage() {
           setMessage('로그인 성공!');
           
           // 백엔드에서 제공한 리디렉션 URL 사용
-          const redirectUrl = data.redirectUrl || 'http://localhost:3002/dashboard';
+          const redirectUrl = data.redirectUrl || 'http://localhost:3000/dashboard';
           setTimeout(() => {
             window.location.href = redirectUrl;
           }, 1500);
@@ -772,7 +769,7 @@ google:
   client-id: ${GOOGLE_CLIENT_ID}
   client-secret: ${GOOGLE_CLIENT_SECRET}
   redirect-uri: ${GOOGLE_REDIRECT_URI:http://localhost:8080/oauth/google/callback}
-  frontend-redirect-uri: ${GOOGLE_FRONTEND_REDIRECT_URI:http://localhost:3002/oauth/google/callback}
+  frontend-redirect-uri: ${GOOGLE_FRONTEND_REDIRECT_URI:http://localhost:3000/oauth/google/callback}
 
 jwt:
   secret: ${JWT_SECRET}
@@ -787,7 +784,7 @@ jwt:
 GOOGLE_CLIENT_ID=your-google-client-id.apps.googleusercontent.com
 GOOGLE_CLIENT_SECRET=your-google-client-secret
 GOOGLE_REDIRECT_URI=http://localhost:8080/oauth/google/callback
-GOOGLE_FRONTEND_REDIRECT_URI=http://localhost:3002/oauth/google/callback
+GOOGLE_FRONTEND_REDIRECT_URI=http://localhost:3000/oauth/google/callback
 
 # JWT 설정
 JWT_SECRET=your-64-character-random-string
@@ -803,7 +800,6 @@ JWT_REFRESH_EXPIRATION=2592000000
 
 승인된 JavaScript 원본:
 - http://localhost:3000
-- http://localhost:3002
 ```
 
 ---
@@ -884,7 +880,7 @@ docker-compose logs --tail=100 oauth-service
 
 ✅ [Success] 구글 로그인 성공!
    - 사용자: 홍길동 (user@example.com)
-   - 리디렉션 URL: http://localhost:3002/oauth/google/callback
+   - 리디렉션 URL: http://localhost:3000/oauth/google/callback
 ========================================
 ```
 
@@ -916,7 +912,7 @@ docker-compose logs --tail=100 oauth-service
 3. "구글 로그인하기" 버튼 클릭
 4. 구글 로그인 페이지에서 로그인 및 동의
 5. 콜백 페이지에서 로그인 성공 확인
-6. `http://localhost:3002/dashboard`로 자동 리디렉션 확인
+6. `http://localhost:3000/dashboard`로 자동 리디렉션 확인
 
 #### 시나리오 2: 로그 확인
 
@@ -974,7 +970,6 @@ globalcors:
     '[/**]':
       allowed-origin-patterns:
         - "https://www.aifixr.site"
-        - "https://sme.aifixr.site"
 ```
 
 ### 4. Rate Limiting
@@ -1022,7 +1017,7 @@ globalcors:
 ```
 Browser → Gateway (8080) → OAuth Service (8085) → Google OAuth 2.0
                                                       ↓
-Browser ← Frontend (3002) ← JWT Token ←──────────────┘
+Browser ← Frontend (3000) ← JWT Token ←──────────────┘
 ```
 
 ---

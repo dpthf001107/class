@@ -230,10 +230,6 @@ public class GoogleController {
 			// Referer에서 포트 추출
 			if (referer.contains(":3000")) {
 				return "http://localhost:3000";
-			} else if (referer.contains(":3001")) {
-				return "http://localhost:3001";
-			} else if (referer.contains(":3002")) {
-				return "http://localhost:3002";
 			}
 		}
 		// 기본값은 www.aifixr.site (포트 3000)

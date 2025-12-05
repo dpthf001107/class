@@ -52,11 +52,7 @@ spring:
           '[/**]':
             allowed-origins:
               - "http://localhost:3000"
-              - "http://localhost:3001"
-              - "http://localhost:3002"
               - "http://127.0.0.1:3000"
-              - "http://127.0.0.1:3001"
-              - "http://127.0.0.1:3002"
             allowed-methods:
               - GET
               - POST
@@ -254,9 +250,9 @@ spring:
               args:
                 name: chatbotCircuitBreaker
         
-        # Titanic Service
+        # ML Service (Titanic)
         - id: titanic-service-route
-          uri: http://titanic-service:9003
+          uri: http://ml-service:9003
           predicates:
             - Path=/api/titanic/**
           filters:
@@ -264,6 +260,17 @@ spring:
             - name: CircuitBreaker
               args:
                 name: titanicCircuitBreaker
+        
+        # ML Service (ESG Grade)
+        - id: grade-service-route
+          uri: http://ml-service:9003
+          predicates:
+            - Path=/api/grade/**
+          filters:
+            - RewritePath=/api/grade/(?<segment>.*), /${segment}
+            - name: CircuitBreaker
+              args:
+                name: gradeCircuitBreaker
 
 # ========================================
 # Resilience4j Circuit Breaker 설정
@@ -313,7 +320,19 @@ resilience4j:
         wait-duration-in-open-state: 10s
         permitted-number-of-calls-in-half-open-state: 3
         automatic-transition-from-open-to-half-open-enabled: true
+      mlCircuitBreaker:
+        sliding-window-size: 10
+        failure-rate-threshold: 50
+        wait-duration-in-open-state: 10s
+        permitted-number-of-calls-in-half-open-state: 3
+        automatic-transition-from-open-to-half-open-enabled: true
       titanicCircuitBreaker:
+        sliding-window-size: 10
+        failure-rate-threshold: 50
+        wait-duration-in-open-state: 10s
+        permitted-number-of-calls-in-half-open-state: 3
+        automatic-transition-from-open-to-half-open-enabled: true
+      gradeCircuitBreaker:
         sliding-window-size: 10
         failure-rate-threshold: 50
         wait-duration-in-open-state: 10s
