@@ -68,3 +68,7 @@ class DataSet(object):
     def label(self, label):
         self._label = label
 
+
+class TitanicDataset(DataSet):
+    """타이타닉 데이터셋 클래스"""
+    pass

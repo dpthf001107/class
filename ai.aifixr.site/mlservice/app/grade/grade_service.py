@@ -3,6 +3,8 @@ import numpy as np
 from sklearn import datasets
 from sklearn.datasets import load_iris, load_wine, load_breast_cancer
 from icecream import ic
+import os
+from app.grade.grade_method import GradeMethod
 
 class GradeService(object):
     """
@@ -30,7 +32,35 @@ class GradeService(object):
 
     def preprocess(self):
         ic("🩵🩵 데이터 전처리 시작")
+        the_method = GradeMethod()
+        
+        # 컨테이너 내부 경로 사용
+        current_dir = os.path.dirname(os.path.abspath(__file__))
+        grade_path = os.path.join(current_dir, 'grade.csv')
+        df_grade = the_method.new_model(grade_path)
+        
+        # esg_rating 컬럼 제거 (라벨)
+        this_grade = the_method.create_train(df_grade, 'esg_rating')
+        
+        ic(f'1. Grade 의 type \n {type(this_grade)} ')
+        ic(f'2. Grade 의 column \n {this_grade.columns} ')
+        ic(f'3. Grade 의 상위 5개 행\n {this_grade.head(5)} ')
+        ic(f'4. Grade 의 null 의 갯수\n {the_method.check_null(this_grade)}개')
+        
+        # 불필요한 컬럼 삭제 (company_name은 company_code와 중복)
+        drop_features = ['company_name']
+        this_grade = the_method.drop_features(this_grade, *drop_features)
+        this_grade = the_method.company_code_Nominal(this_grade)
+        this_grade = the_method.env_rating_Ordinal(this_grade)
+        this_grade = the_method.soc_rating_Ordinal(this_grade)
+        this_grade = the_method.gov_rating_Ordinal(this_grade)
+        this_grade = the_method.year_Ordinal(this_grade)
+        
         ic("🩵🩵 데이터 전처리 완료")
+        ic(f'1. Grade 의 type \n {type(this_grade)} ')
+        ic(f'2. Grade 의 column \n {this_grade.columns} ')
+        ic(f'3. Grade 의 상위 5개 행\n {this_grade.head(5)} ')
+        ic(f'4. Grade 의 null 의 갯수\n {the_method.check_null(this_grade)}개')
 
     def modeling(self):
         ic("🩵🩵 모델링 시작")

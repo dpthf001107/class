@@ -41,11 +41,21 @@ async def root():
         "version": "1.0.0"
     }
 
+# Health check 엔드포인트 (게이트웨이용)
+@app.get("/api/ml/")
+async def ml_health():
+    """ML 서비스 Health Check 엔드포인트"""
+    return {
+        "message": "ML Service",
+        "status": "healthy",
+        "version": "1.0.0"
+    }
+
 # 타이타닉 라우터 연결
-app.include_router(titanic_router, prefix="/api/titanic", tags=["titanic"])
+app.include_router(titanic_router, prefix="/api/titanic")
 
 # ESG 등급 라우터 연결
-app.include_router(grade_router, prefix="/api/grade", tags=["grade"])
+app.include_router(grade_router, prefix="/api/grade")
 
 if __name__ == "__main__":
     uvicorn.run(app, host="0.0.0.0", port=9003)

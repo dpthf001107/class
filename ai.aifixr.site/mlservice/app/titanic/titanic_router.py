@@ -102,6 +102,23 @@ async def titanic_root():
     return {"message": "Titanic Service", "status": "running"}
 
 @router.get(
+    "/preprocess",
+    summary="데이터 전처리",
+    description="타이타닉 데이터를 전처리합니다.",
+    response_description="전처리 완료 메시지"
+)
+async def preprocess_data():
+    """
+    타이타닉 데이터 전처리를 수행합니다.
+    
+    - Train 데이터와 Test 데이터를 로드하고 전처리합니다.
+    - 각 데이터의 타입, 컬럼, 상위 행, null 개수 등을 확인합니다.
+    """
+    service = get_service()
+    service.preprocess()
+    return {"message": "데이터 전처리가 완료되었습니다."}
+
+@router.get(
     "/top-10",
     response_model=Top10Response,
     summary="상위 10명 조회",

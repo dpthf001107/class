@@ -137,6 +137,13 @@ spring:
           filters:
             - RewritePath=/api-docs/chatbot, /openapi.json
         
+        - id: ml-api-docs
+          uri: http://ml-service:9003
+          predicates:
+            - Path=/api-docs/ml
+          filters:
+            - RewritePath=/api-docs/ml, /openapi.json
+        
         # ========================================
         # Spring Boot Services
         # ========================================
@@ -394,6 +401,8 @@ springdoc:
         name: Crawler Service (FastAPI)
       - url: /api-docs/chatbot
         name: Chatbot Service (FastAPI)
+      - url: /api-docs/ml
+        name: ML Service (FastAPI)
       - url: /api-docs/oauth
         name: OAuth Service (Google Login)
   show-actuator: false
