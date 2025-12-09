@@ -114,9 +114,18 @@ async def preprocess_data():
     - Train 데이터와 Test 데이터를 로드하고 전처리합니다.
     - 각 데이터의 타입, 컬럼, 상위 행, null 개수 등을 확인합니다.
     """
-    service = get_service()
-    service.preprocess()
-    return {"message": "데이터 전처리가 완료되었습니다."}
+    try:
+        service = get_service()
+        service.preprocess()
+        return {"message": "데이터 전처리가 완료되었습니다."}
+    except Exception as e:
+        import traceback
+        error_detail = traceback.format_exc()
+        return {
+            "message": "데이터 전처리 중 오류가 발생했습니다.",
+            "error": str(e),
+            "detail": error_detail
+        }
 
 @router.get(
     "/top-10",

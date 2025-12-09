@@ -1,21 +1,21 @@
+from sklearn.ensemble import RandomForestClassifier
+from sklearn.model_selection import train_test_split
+from sklearn.metrics import accuracy_score
+
 class TitanicModel:
-    """타이타닉 승객 데이터 모델"""
-
     def __init__(self):
-        # 데이터셋 객체 생성
-        pass
+        self.model = RandomForestClassifier(
+            n_estimators=300,
+            max_depth=7,
+            random_state=42
+        )
 
-    def new_model(self):
-        # train.csv 파일을 읽어와서 데이터셋 객체에 저장
-        pass
+    def fit(self, X, y):
+        self.model.fit(X, y)
 
-    def create_train(self):
-        #Survived 값을 제거한 데이터프레임 작성
-        pass
+    def predict(self, X):
+        return self.model.predict(X)
 
-    def create_label(self):
-        #Survived 값만 가지는 답안지 데이터프레임 작성
-        pass
-
-
-
+    def evaluate(self, X, y):
+        pred = self.model.predict(X)
+        return accuracy_score(y, pred)

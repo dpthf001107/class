@@ -3,177 +3,186 @@ import numpy as np
 import pandas as pd
 from pandas import DataFrame
 from app.titanic.titanic_dataset import TitanicDataset
+from typing import Tuple
 class TitanicMethod(object):
 
     def __init__(self):
         # TitanicDataset 객체 생성 DF(MODEL)로 전환하기 위해서
         self.dataset = TitanicDataset()
 
-    def new_model(self, fname: str) -> pd.DataFrame:
+    def read_csv(self, fname: str) -> pd.DataFrame:
         # train.csv 파일을 읽어와서 데이터셋 객체에 저장
         return pd.read_csv(fname)
 
-    def create_train(self, df: DataFrame, label: str) -> pd.DataFrame:
+    def create_df(self, df: DataFrame, label: str) -> pd.DataFrame:
         #Survived 값을 제거한 데이터프레임 작성
         return df.drop(columns=[label])
 
     def create_label(self, df: DataFrame, label: str) -> pd.DataFrame:
         #Survived 값만 가지는 답안지 데이터프레임 작성
-        return df[label]
+        return df[[label]]
 
-    def drop_features(self, df: DataFrame, *features: str)-> pd.DataFrame:
-        #피쳐를 삭제하는 메소드
-        return df.drop(columns=[f for f in features])
+    def drop_features(self, this, *features: str) -> object:
+        for df in [this.train, this.test]:
+            df.drop(columns=list(features), inplace=True, errors='ignore')
+        return this
 
 
-    def check_null(self, df: DataFrame) -> int:
-        #널을 체크하는 메소드
-        return int(df.isnull().sum().sum())
 
-    # 척도: nominal , ordinal , interval , ratio
+    def check_null(self, this) -> None:
+        for name, df in [("train", this.train), ("test", this.test)]:
+            print(f"🔎 {name} null summary:")
+            print(df.isnull().sum())
 
-    def pclass_ordinal(self, df: DataFrame) -> pd.DataFrame:
+
+
+ # 척도: nominal , ordinal , interval , ratio
+
+    def pclass_ordinal(self, train_df: DataFrame, test_df: DataFrame):
         """
         Pclass: 객실 등급 (1, 2, 3)
-        - 서열형 척도(ordinal)로 처리합니다.
-        - 1등석 > 2등석 > 3등석이므로, 생존률 관점에서 1이 가장 좋고 3이 가장 안 좋습니다.
-        - 기존 Pclass를 유지하고, Pclass_ordinal 컬럼을 추가합니다.
+        - 이미 ordinal(서열형) 특성을 가진 변수이므로 그대로 사용합니다.
+        - 머신러닝 모델 학습에 문제 없도록 int 타입만 확실히 맞춰줍니다.
         """
-        # Pclass는 이미 1, 2, 3의 서열형 값이므로 그대로 사용
-        # 생존률 관점에서 1이 가장 좋으므로, 값이 작을수록 좋은 것으로 인코딩
-        # 실제로는 이미 1 > 2 > 3 순서이므로 그대로 사용하거나, 역순으로 변환할 수 있음
-        # 여기서는 기존 값을 유지하되, 명시적으로 ordinal 컬럼 생성
-        df = df.copy()
-        df["Pclass"] = df["Pclass"].astype(int) #이름은 CSV 파일에 있는 것과 똑같이 맞춰준다.
-        return df
+        train_df = train_df.copy()
+        test_df = test_df.copy()
 
-    def fare_ordinal(self, df: DataFrame) -> pd.DataFrame:
-        """
-        Fare: 요금 (연속형 ratio 척도이지만, 여기서는 구간화하여 서열형으로 사용)
-        - 결측치가 있으면 중앙값으로 채웁니다.
-        - Fare를 사분위수로 binning 하여 ordinal 피처를 만듭니다.
-        - 원래 Fare 컬럼은 그대로 유지하고, Fare_band 컬럼만 추가합니다.
-        """
-        df = df.copy()
-        
-        # 결측치를 중앙값으로 채우기
-        if df["Fare"].isnull().any():
-            median_fare = df["Fare"].median()
-            df["Fare"].fillna(median_fare, inplace=True)
-        
-        # 사분위수로 binning (q=4로 4개 구간 생성)
-        # labels=[0,1,2,3]으로 낮은 값이 0, 높은 값이 3
+        train_df["Pclass"] = train_df["Pclass"].astype(int)
+        test_df["Pclass"] = test_df["Pclass"].astype(int)
+
+        return train_df, test_df
+
+
+    def fare_ordinal(self, train_df: DataFrame, test_df: DataFrame):
+        train_df = train_df.copy()
+        test_df = test_df.copy()
+
+        # 1) Fare 중앙값으로 결측치 채우기 (train 기준)
+        median_fare = train_df["Fare"].median()
+        train_df["Fare"].fillna(median_fare, inplace=True)
+        test_df["Fare"].fillna(median_fare, inplace=True)
+
+        # 2) train_df 기준으로 qcut 경계값 생성 (bin edges)
         try:
-            df["Fare"] = pd.qcut(df["Fare"], q=4, labels=[0, 1, 2, 3], duplicates='drop')
-            # qcut이 실패할 경우 (중복값 등) cut 사용
+            train_bins = pd.qcut(train_df["Fare"], q=4, retbins=True, duplicates="drop")[1]
         except ValueError:
-            # 중복값이 많아 qcut이 실패하면 cut 사용
-            df["Fare"] = pd.cut(df["Fare"], bins=4, labels=[0, 1, 2, 3], duplicates='drop')
-        
-        # 범주형을 정수로 변환
-        df["Fare"] = df["Fare"].astype(int)
-        
-        return df
+            # train 데이터 분포가 특이하면 cut fallback
+            train_bins = pd.cut(train_df["Fare"], bins=4, retbins=True)[1]
 
-    def embarked_ordinal(self, df: DataFrame) -> pd.DataFrame:
-        """
-        Embarked: 탑승 항구 (C, Q, S)
-        - 본질적으로는 nominal(명목) 척도입니다.
-        - 결측치는 가장 많이 등장하는 값으로 채웁니다 (mode).
-        - 라벨 인코딩으로 변환합니다 (C=0, Q=1, S=2).
-        """
-        df = df.copy()
-        
-        # 결측치를 최빈값으로 채우기
-        if df["Embarked"].isnull().any():
-            mode_embarked = df["Embarked"].mode()[0] if not df["Embarked"].mode().empty else 'S'
-            df["Embarked"].fillna(mode_embarked, inplace=True)
-        
-        # 라벨 인코딩 (문자열을 숫자로 변환)
-        embarked_mapping = {"C": 0, "Q": 1, "S": 2}
-        df["Embarked"] = df["Embarked"].map(embarked_mapping)
-        
-        return df
+        # 3) 동일 경계로 train/test 모두 binning
+        train_df["Fare"] = pd.cut(train_df["Fare"], bins=train_bins, labels=False, include_lowest=True)
+        test_df["Fare"] = pd.cut(test_df["Fare"], bins=train_bins, labels=False, include_lowest=True)
 
-    def gender_nominal(self, df: DataFrame) -> pd.DataFrame:
-        """
-        Sex: 성별 (male, female)
-        - nominal 척도입니다.
-        - 라벨 인코딩으로 변환합니다 (male=0, female=1)
-        - 원본 "Sex" 컬럼을 "Gender"로 변경하고 숫자로 변환합니다.
-        """
-        df = df.copy()
-        
-        # 라벨 인코딩: male=0, female=1
-        gender_mapping = {"male": 0, "female": 1}
-        df["Gender"] = df["Sex"].map(gender_mapping)
-        
-        # 원본 Sex 컬럼 삭제
-        df.drop(columns=["Sex"], inplace=True)
-        
-        return df
+        # category → int
+        train_df["Fare"] = train_df["Fare"].astype(int)
+        test_df["Fare"] = test_df["Fare"].astype(int)
 
-    def age_ratio(self, df: DataFrame) -> pd.DataFrame:
+        return train_df, test_df
+
+
+    def embarked_nominal(self, train_df: DataFrame, test_df: DataFrame) -> tuple[pd.DataFrame, pd.DataFrame]:
+        train_df = train_df.copy()
+        test_df = test_df.copy()
+
+        # 최빈값으로 결측치 처리
+        mode_embarked = train_df["Embarked"].mode()[0]
+        train_df["Embarked"].fillna(mode_embarked, inplace=True)
+        test_df["Embarked"].fillna(mode_embarked, inplace=True)
+
+        # One-Hot Encoding
+        train_df = pd.get_dummies(train_df, columns=["Embarked"], prefix="Embarked")
+        test_df = pd.get_dummies(test_df, columns=["Embarked"], prefix="Embarked")
+
+        # train/test 컬럼 일치시키기
+        test_df = test_df.reindex(columns=train_df.columns, fill_value=0)
+
+        return train_df, test_df
+
+    def gender_nominal(self, train_df: DataFrame, test_df: DataFrame) -> tuple[pd.DataFrame, pd.DataFrame]:
+        train_df = train_df.copy()
+        test_df = test_df.copy()
+
+        # 컬럼명 변경
+        train_df.rename(columns={"Sex": "Gender"}, inplace=True)
+        test_df.rename(columns={"Sex": "Gender"}, inplace=True)
+
+        # One-Hot Encoding
+        train_df = pd.get_dummies(train_df, columns=["Gender"], prefix="Gender")
+        test_df = pd.get_dummies(test_df, columns=["Gender"], prefix="Gender")
+
+        # train/test의 컬럼 일치시키기
+        test_df = test_df.reindex(columns=train_df.columns, fill_value=0)
+
+        return train_df, test_df
+
+
+    def age_ratio(self, train_df: DataFrame, test_df: DataFrame):
         """
         Age: 나이
-        - 원래는 ratio 척도지만, 여기서는 나이를 구간으로 나눈 ordinal 피처를 만듭니다.
-        - Age 결측치는 중앙값으로 채웁니다.
-        - bins를 사용해서 나이를 구간화합니다.
-        - 원본 Age 컬럼은 유지하고, Age_band 컬럼을 추가합니다.
-        
-        bins 의미:
-        - [-1, 0]: 미상 (Unknown)
-        - [0, 5]: 유아 (Infant)
-        - [5, 12]: 어린이 (Child)
-        - [12, 18]: 청소년 (Teenager)
-        - [18, 24]: 청년 (Young Adult)
-        - [24, 35]: 성인 (Adult)
-        - [35, 60]: 중년 (Middle Age)
-        - [60, inf]: 노년 (Senior)
+        - Ratio(연속형) 척도로 그대로 사용합니다.
+        - Age 결측치는 Title(호칭)별 중앙값으로 채웁니다.
+          단, Title 그룹에 결측치가 많은 경우를 대비해 전체 중앙값도 fallback으로 사용합니다.
+        - 구간화(binning)는 성능 저하 가능성이 있어 사용하지 않습니다.
         """
-        df = df.copy()
-        bins = [-1, 0, 5, 12, 18, 24, 35, 60, np.inf]
-        
-        # 결측치를 중앙값으로 채우기
-        if df["Age"].isnull().any():
-            median_age = df["Age"].median()
-            df["Age"].fillna(median_age, inplace=True)
-        
-        # bins를 사용해서 나이를 구간화
-        df["Age"] = pd.cut(df["Age"], bins=bins, labels=[0, 1, 2, 3, 4, 5, 6, 7], right=False)
-        
-        # 범주형을 정수로 변환 (NaN이 있으면 -1로 처리)
-        df["Age"] = df["Age"].cat.codes
-        df["Age"] = df["Age"].replace(-1, 0)  # -1을 0으로 (미상)
-        
-        return df
+        train_df = train_df.copy()
+        test_df = test_df.copy()
 
-    def title_nominal(self, df: DataFrame) -> pd.DataFrame:
+        # train + test 합쳐서 Title별 중앙값 계산 (더 안정적)
+        combined = pd.concat([train_df, test_df], ignore_index=True)
+
+        # Title별 중앙값
+        title_medians = combined.groupby("Title")["Age"].median()
+
+        # 전체 중앙값 (fallback)
+        global_median = combined["Age"].median()
+
+        # 결측치 채우는 함수
+        def fill_age(df):
+            df["Age"] = df.apply(
+                lambda row: title_medians[row["Title"]]
+                if pd.isna(row["Age"]) and row["Title"] in title_medians
+                else (global_median if pd.isna(row["Age"]) else row["Age"]),
+                axis=1
+            )
+            return df
+
+        train_df = fill_age(train_df)
+        test_df = fill_age(test_df)
+
+        # Age는 ratio이므로 float 그대로 두거나 int 변환(선호에 따라)
+        train_df["Age"] = train_df["Age"].astype(float)
+        test_df["Age"] = test_df["Age"].astype(float)
+
+        return train_df, test_df
+
+
+    def title_nominal(self, train_df: DataFrame, test_df: DataFrame) -> tuple[pd.DataFrame, pd.DataFrame]:
         """
-        Title: 명칭 (Mr, Mrs, Miss, Master, Dr, etc.)
-        - Name 컬럼에서 추출한 타이틀입니다.
-        - nominal 척도입니다.
-        - 희소한 타이틀은 "Rare" 그룹으로 묶습니다.
-        - 라벨 인코딩으로 변환합니다 (0: Master, 1: Miss, 2: Mr, 3: Mrs, 4: Rare).
+        Title: 명칭 (Mr, Mrs, Miss, Master, Dr 등)
+        - Name에서 타이틀 추출
+        - Nominal → One-Hot Encoding
         """
-        df = df.copy()
-        
-        # Name 컬럼에서 Title 추출 (정규표현식 사용)
-        # 예: "Braund, Mr. Owen Harris" -> "Mr"
-        df["Title"] = df["Name"].str.extract(r',\s*([^\.]+)\.', expand=False)
-        
-        # 희소한 타이틀을 "Rare"로 묶기
-        # 일반적인 타이틀: Mr, Mrs, Miss, Master
-        # 그 외는 Rare로 처리
+        train_df = train_df.copy()
+        test_df = test_df.copy()
+
+        # 1. Title 추출
+        def extract_title(df):
+            df["Title"] = df["Name"].str.extract(r',\s*([^\.]+)\.', expand=False)
+            return df
+
+        train_df = extract_title(train_df)
+        test_df = extract_title(test_df)
+
+        # 2. 드문 타이틀 Other로 묶기
         common_titles = ["Mr", "Mrs", "Miss", "Master"]
-        df["Title"] = df["Title"].apply(lambda x: x if x in common_titles else "Rare")
-        
-        # 결측치가 있으면 "Rare"로 처리
-        df["Title"].fillna("Rare", inplace=True)
-        
-        # 라벨 인코딩 (문자열을 숫자로 변환)
-        title_mapping = {"Master": 0, "Miss": 1, "Mr": 2, "Mrs": 3, "Rare": 4}
-        df["Title"] = df["Title"].map(title_mapping)
-        
-        return df
+        train_df["Title"] = train_df["Title"].apply(lambda x: x if x in common_titles else "Other")
+        test_df["Title"] = test_df["Title"].apply(lambda x: x if x in common_titles else "Other")
 
+        # 3. One-Hot Encoding
+        train_df = pd.get_dummies(train_df, columns=["Title"], prefix="Title")
+        test_df = pd.get_dummies(test_df, columns=["Title"], prefix="Title")
+
+        # 4. train/test 열 맞추기
+        test_df = test_df.reindex(columns=train_df.columns, fill_value=0)
+
+        return train_df, test_df
