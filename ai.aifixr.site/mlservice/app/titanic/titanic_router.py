@@ -3,7 +3,11 @@ from pydantic import BaseModel
 from typing import List, Dict, Optional
 import csv
 import os
+import logging
 from .titanic_service import TitanicService
+
+# Logger 설정
+logger = logging.getLogger(__name__)
 
 # 라우터 생성
 router = APIRouter(
@@ -187,3 +191,81 @@ async def get_top_10():
         "total": total_count,
         "message": f"총 {total_count}명 중 상위 10명을 반환했습니다."
     }
+
+@router.get(
+    "/evaluate",
+    summary="모델 평가",
+    description="타이타닉 데이터로 5가지 알고리즘을 학습하고 평가합니다.",
+    response_description="각 모델의 평가 결과"
+)
+async def evaluate_model():
+    """
+    모델 평가를 수행합니다.
+    
+    ### 처리 순서
+    1. 데이터 전처리 (preprocess)
+    2. 모델 초기화 (modeling)
+    3. 모델 학습 (learning)
+    4. 모델 평가 (evaluate)
+    
+    ### 반환 정보
+    - **success**: 요청 성공 여부
+    - **results**: 각 모델의 정확도
+        - logistic_regression: 로지스틱 회귀 정확도
+        - naive_bayes: 나이브베이즈 정확도
+        - random_forest: 랜덤포레스트 정확도
+        - lightgbm: LightGBM 정확도
+        - svm: SVM 정확도
+    - **message**: 응답 메시지
+    
+    ### 예시
+    ```json
+    {
+        "success": true,
+        "results": {
+            "logistic_regression": 0.8123,
+            "naive_bayes": 0.7865,
+            "random_forest": 0.8315,
+            "lightgbm": 0.8258,
+            "svm": 0.8034
+        },
+        "message": "모델 평가가 완료되었습니다."
+    }
+    ```
+    """
+    try:
+        service = get_service()
+        
+        # 1. 전처리
+        logger.info("전처리 시작...")
+        service.preprocess()
+        
+        # 2. 모델링
+        logger.info("모델링 시작...")
+        service.modeling()
+        
+        # 3. 학습
+        logger.info("학습 시작...")
+        service.learning()
+        
+        # 4. 평가
+        logger.info("평가 시작...")
+        results = service.evaluate()
+        
+        return {
+            "success": True,
+            "results": results,
+            "message": "모델 평가가 완료되었습니다."
+        }
+        
+    except Exception as e:
+        import traceback
+        error_detail = traceback.format_exc()
+        logger.error(f"모델 평가 중 오류 발생: {str(e)}")
+        return {
+            "success": False,
+            "message": "모델 평가 중 오류가 발생했습니다.",
+            "error": str(e),
+            "detail": error_detail
+        }
+
