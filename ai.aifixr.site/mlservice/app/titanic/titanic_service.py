@@ -1,12 +1,16 @@
 import pandas as pd
 import os
 import logging
+import numpy as np
 from sklearn.linear_model import LogisticRegression
 from sklearn.naive_bayes import GaussianNB
-from sklearn.ensemble import RandomForestClassifier
+from sklearn.ensemble import RandomForestClassifier, VotingClassifier
+from sklearn.tree import DecisionTreeClassifier
 from lightgbm import LGBMClassifier
 from sklearn.svm import SVC
-from sklearn.model_selection import train_test_split
+from sklearn.neighbors import KNeighborsClassifier
+from sklearn.model_selection import StratifiedKFold, cross_val_score
+from sklearn.preprocessing import StandardScaler
 from sklearn.metrics import accuracy_score
 from app.titanic.titanic_method import TitanicMethod
 from app.titanic.titanic_dataset import TitanicDataset
@@ -24,13 +28,12 @@ class TitanicService:
         self.lr_model = None
         self.nb_model = None
         self.rf_model = None
+        self.dt_model = None
         self.lgbm_model = None
-        self.svm_model = None
-        # 학습/검증 데이터
-        self.X_train = None
-        self.X_val = None
-        self.y_train = None
-        self.y_val = None
+        self.knn_model = None
+        self.ensemble_model = None
+        # Scaler
+        self.scaler = None
         # 평가 결과
         self.evaluation_results = None
 
@@ -47,26 +50,28 @@ class TitanicService:
         logger.info("❤️❤️ 데이터 읽기 완료")
 
         # -----------------------------
+        # Feature Engineering (원본 데이터 사용)
+        # -----------------------------
+        logger.info("Feature Engineering 시작...")
+        
+        # FamilySize 생성 (원본 데이터에서)
+        df_train["FamilySize"] = df_train["SibSp"] + df_train["Parch"] + 1
+        df_test["FamilySize"] = df_test["SibSp"] + df_test["Parch"] + 1
+        
+        # IsAlone 생성
+        df_train["IsAlone"] = (df_train["FamilySize"] == 1).astype(int)
+        df_test["IsAlone"] = (df_test["FamilySize"] == 1).astype(int)
+
+        # -----------------------------
         # Train 전처리
         # -----------------------------
         this_train = the_method.create_df(df_train, 'Survived')       # features만
         this_label = the_method.create_label(df_train, 'Survived')    # label 생성
 
-        logger.info("❤️❤️ Train 데이터 정보")
-        logger.info("1. Train 의 type: %s", type(this_train))
-        logger.info("2. Train 의 columns: %s", list(this_train.columns))
-        logger.info("3. Train 의 상위 5개 행:\n%s", this_train.head(5))
-        logger.info("4. Train null 개수:\n%s", this_train.isnull().sum())
-
         # -----------------------------
         # Test 전처리
         # -----------------------------
         this_test = the_method.create_df(df_test, 'Survived')
-        logger.info("💛💛 Test 데이터 정보")
-        logger.info("1. Test 의 type: %s", type(this_test))
-        logger.info("2. Test 의 columns: %s", list(this_test.columns))
-        logger.info("3. Test 의 상위 5개 행:\n%s", this_test.head(5))
-        logger.info("4. Test null 개수:\n%s", this_test.isnull().sum())
 
         # -----------------------------
         # TitanicDataset으로 통합
@@ -74,7 +79,7 @@ class TitanicService:
         this = TitanicDataset()
         this.train = this_train
         this.test = this_test
-        this.label = this_label     # 여기서 label 할당!
+        this.label = this_label
 
         self.dataset = this
 
@@ -82,33 +87,28 @@ class TitanicService:
         # 전처리 적용
         # -----------------------------
         logger.info("❤️❤️ 전처리 시작")
+        
+        # 불필요한 컬럼 제거
         drop_features = ['SibSp', 'Parch', 'Ticket', 'Cabin']
         self.dataset = the_method.drop_features(self.dataset, *drop_features)
+        
+        # 기본 전처리
         self.dataset = the_method.pclass_ordinal(self.dataset)
         self.dataset = the_method.fare_ordinal(self.dataset)
         self.dataset = the_method.embarked_nominal(self.dataset)
         self.dataset = the_method.gender_nominal(self.dataset)
-        self.dataset = the_method.title_nominal(self.dataset)  # Title 생성 후 age_ratio
+        self.dataset = the_method.title_nominal(self.dataset)
         self.dataset = the_method.age_ratio(self.dataset)
-
+        
         # 불필요한 컬럼 제거
         drop_original = ['Name']
         self.dataset = the_method.drop_features(self.dataset, *drop_original)
-
-        # -----------------------------
-        # 전처리 후 정보
-        # -----------------------------
-        logger.info("❤️❤️ 전처리 후 Train 데이터 정보")
-        logger.info("1. Train 의 type: %s", type(self.dataset.train))
-        logger.info("2. Train 의 columns: %s", list(self.dataset.train.columns))
-        logger.info("3. Train 의 상위 5개 행:\n%s", self.dataset.train.head(5))
-        logger.info("4. Train null 개수:\n%s", self.dataset.train.isnull().sum())
-
-        logger.info("💛💛 전처리 후 Test 데이터 정보")
-        logger.info("1. Test 의 type: %s", type(self.dataset.test))
-        logger.info("2. Test 의 columns: %s", list(self.dataset.test.columns))
-        logger.info("3. Test 의 상위 5개 행:\n%s", self.dataset.test.head(5))
-        logger.info("4. Test null 개수:\n%s", self.dataset.test.isnull().sum())
+        
+        # 결측치 최종 확인 및 처리
+        if self.dataset.train.isnull().sum().sum() > 0:
+            logger.warning("결측치 발견, 중앙값으로 대체합니다.")
+            self.dataset.train = self.dataset.train.fillna(self.dataset.train.median())
+            self.dataset.test = self.dataset.test.fillna(self.dataset.test.median())
 
         logger.info("❤️❤️ 전처리 완료!")
 
@@ -116,7 +116,7 @@ class TitanicService:
     # 모델링, 학습, 평가
     # -----------------------------
     def modeling(self):
-        """5가지 알고리즘 모델 초기화"""
+        """6가지 알고리즘 모델 초기화 + 앙상블"""
         logger.info("❤️❤️ 모델링 시작")
         
         # 1. 로지스틱 회귀
@@ -125,95 +125,121 @@ class TitanicService:
         # 2. 나이브베이즈
         self.nb_model = GaussianNB()
         
-        # 3. 랜덤포레스트
-        self.rf_model = RandomForestClassifier(n_estimators=100, random_state=42)
+        # 3. 랜덤포레스트 (하이퍼파라미터 최적화)
+        self.rf_model = RandomForestClassifier(
+            n_estimators=100, 
+            max_depth=None,  # 제한 없음 (이전 버전으로 복원)
+            min_samples_split=2,
+            random_state=42
+        )
         
-        # 4. LightGBM
-        self.lgbm_model = LGBMClassifier(random_state=42, verbose=-1)
+        # 4. 결정트리
+        self.dt_model = DecisionTreeClassifier(random_state=42)
         
-        # 5. SVM
-        self.svm_model = SVC(kernel='rbf', random_state=42)
+        # 5. LightGBM (하이퍼파라미터 최적화)
+        self.lgbm_model = LGBMClassifier(
+            n_estimators=100, 
+            learning_rate=0.1, 
+            num_leaves=31, 
+            random_state=42,
+            verbose=-1
+        )
+        
+        # 6. KNN
+        self.knn_model = KNeighborsClassifier(n_neighbors=13)
+        
+        # 7. 앙상블 모델 (성능 좋은 모델만 선택)
+        self.ensemble_model = VotingClassifier(
+            estimators=[
+                ('rf', self.rf_model), 
+                ('lgbm', self.lgbm_model), 
+                ('lr', self.lr_model),
+                ('nb', self.nb_model)
+            ],
+            voting='soft'
+        )
         
         logger.info("❤️❤️ 모델링 완료")
 
-    def learning(self):
-        """Train/Validation 분할 후 5가지 모델 학습"""
-        logger.info("❤️❤️ 학습 시작")
-        
-        # 전처리 후 결측치 확인
-        if self.dataset.train.isnull().sum().sum() > 0:
-            raise ValueError("전처리 후에도 결측치가 남아있습니다.")
-        
-        # Train/Validation 분할 (80:20, stratify=y)
-        X = self.dataset.train
-        y = self.dataset.label.values.ravel()  # DataFrame을 1D array로 변환
-        
-        self.X_train, self.X_val, self.y_train, self.y_val = train_test_split(
-            X, y, test_size=0.2, random_state=42, stratify=y
-        )
-        
-        logger.info(f"Train 데이터: {len(self.X_train)}개, Validation 데이터: {len(self.X_val)}개")
-        
-        # 1. 로지스틱 회귀 학습
-        logger.info("로지스틱 회귀 학습 중...")
-        self.lr_model.fit(self.X_train, self.y_train)
-        
-        # 2. 나이브베이즈 학습
-        logger.info("나이브베이즈 학습 중...")
-        self.nb_model.fit(self.X_train, self.y_train)
-        
-        # 3. 랜덤포레스트 학습
-        logger.info("랜덤포레스트 학습 중...")
-        self.rf_model.fit(self.X_train, self.y_train)
-        
-        # 4. LightGBM 학습
-        logger.info("LightGBM 학습 중...")
-        self.lgbm_model.fit(self.X_train, self.y_train)
-        
-        # 5. SVM 학습
-        logger.info("SVM 학습 중...")
-        self.svm_model.fit(self.X_train, self.y_train)
-        
-        logger.info("❤️❤️ 학습 완료")
+    def create_k_fold(self):
+        """StratifiedKFold 10-Fold 생성"""
+        return StratifiedKFold(n_splits=10, shuffle=True, random_state=42)
 
     def evaluate(self):
-        """Validation 데이터로 각 모델 평가"""
-        logger.info("❤️❤️ 평가 시작")
+        """StratifiedKFold 10-Fold 교차검증으로 평가"""
+        logger.info("❤️❤️ 평가 시작 (10-Fold Cross Validation)")
         
-        # 1. 로지스틱 회귀 평가
-        lr_pred = self.lr_model.predict(self.X_val)
-        lr_accuracy = accuracy_score(self.y_val, lr_pred)
-        logger.info(f'로지스틱 회귀 활용한 검증 정확도: {lr_accuracy:.4f}')
+        X = self.dataset.train
+        y = self.dataset.label.values.ravel()
         
-        # 2. 나이브베이즈 평가
-        nb_pred = self.nb_model.predict(self.X_val)
-        nb_accuracy = accuracy_score(self.y_val, nb_pred)
-        logger.info(f'나이브베이즈 활용한 검증 정확도: {nb_accuracy:.4f}')
+        k_fold = self.create_k_fold()
+        results = {}
         
-        # 3. 랜덤포레스트 평가
-        rf_pred = self.rf_model.predict(self.X_val)
-        rf_accuracy = accuracy_score(self.y_val, rf_pred)
-        logger.info(f'랜덤포레스트 활용한 검증 정확도: {rf_accuracy:.4f}')
+        # 모든 모델 평가
+        models = [
+            ("logistic_regression", self.lr_model),
+            ("naive_bayes", self.nb_model),
+            ("random_forest", self.rf_model),
+            ("decision_tree", self.dt_model),
+            ("lightgbm", self.lgbm_model),
+            ("knn", self.knn_model),
+            ("ensemble", self.ensemble_model)
+        ]
         
-        # 4. LightGBM 평가
-        lgbm_pred = self.lgbm_model.predict(self.X_val)
-        lgbm_accuracy = accuracy_score(self.y_val, lgbm_pred)
-        logger.info(f'LightGBM 활용한 검증 정확도: {lgbm_accuracy:.4f}')
+        for name, model in models:
+            logger.info(f"{name} 평가 중...")
+            scores = cross_val_score(
+                model, X, y, 
+                cv=k_fold, 
+                scoring='accuracy',
+                n_jobs=-1
+            )
+            accuracy = round(np.mean(scores) * 100, 2)
+            results[name] = float(accuracy)
+            logger.info(f'{name} 10-Fold CV 평균 정확도: {accuracy}%')
         
-        # 5. SVM 평가
-        svm_pred = self.svm_model.predict(self.X_val)
-        svm_accuracy = accuracy_score(self.y_val, svm_pred)
-        logger.info(f'SVM 활용한 검증 정확도: {svm_accuracy:.4f}')
-        
-        # 결과 저장
-        self.evaluation_results = {
-            "logistic_regression": float(lr_accuracy),
-            "naive_bayes": float(nb_accuracy),
-            "random_forest": float(rf_accuracy),
-            "lightgbm": float(lgbm_accuracy),
-            "svm": float(svm_accuracy)
-        }
-        
+        self.evaluation_results = results
         logger.info("❤️❤️ 평가 완료")
         
-        return self.evaluation_results
+        return results
+    
+    def submit(self):
+        """RandomForest 모델로 test 데이터 예측 및 Kaggle 제출용 CSV 생성"""
+        logger.info("❤️❤️ 제출 파일 생성 시작")
+        
+        # RandomForest 모델로 전체 train 데이터 학습
+        X_train = self.dataset.train
+        y_train = self.dataset.label.values.ravel()
+        
+        logger.info("RandomForest 모델 학습 중...")
+        self.rf_model.fit(X_train, y_train)
+        
+        # Test 데이터 예측
+        X_test = self.dataset.test
+        logger.info("Test 데이터 예측 중...")
+        predictions = self.rf_model.predict(X_test)
+        
+        # 원본 test.csv에서 PassengerId 읽기
+        current_dir = os.path.dirname(os.path.abspath(__file__))
+        test_path = os.path.join(current_dir, 'test.csv')
+        df_test_original = pd.read_csv(test_path)
+        
+        # 제출용 DataFrame 생성
+        submission = pd.DataFrame({
+            'PassengerId': df_test_original['PassengerId'],
+            'Survived': predictions.astype(int)
+        })
+        
+        # download 폴더에 저장 (app/download)
+        # current_dir = app/titanic
+        # os.path.dirname(current_dir) = app
+        download_dir = os.path.join(os.path.dirname(current_dir), 'download')
+        os.makedirs(download_dir, exist_ok=True)
+        
+        submission_path = os.path.join(download_dir, 'titanic_submission.csv')
+        submission.to_csv(submission_path, index=False)
+        
+        logger.info(f"제출 파일 생성 완료: {submission_path}")
+        logger.info(f"예측 결과 요약: 생존 {predictions.sum()}명, 사망 {len(predictions) - predictions.sum()}명")
+        
+        return submission_path

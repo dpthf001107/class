@@ -1,4 +1,5 @@
 from fastapi import APIRouter
+from fastapi.responses import FileResponse
 from pydantic import BaseModel
 from typing import List, Dict, Optional
 import csv
@@ -195,7 +196,7 @@ async def get_top_10():
 @router.get(
     "/evaluate",
     summary="모델 평가",
-    description="타이타닉 데이터로 5가지 알고리즘을 학습하고 평가합니다.",
+    description="타이타닉 데이터로 7가지 알고리즘을 10-Fold 교차검증으로 평가합니다.",
     response_description="각 모델의 평가 결과"
 )
 async def evaluate_model():
@@ -203,19 +204,27 @@ async def evaluate_model():
     모델 평가를 수행합니다.
     
     ### 처리 순서
-    1. 데이터 전처리 (preprocess)
-    2. 모델 초기화 (modeling)
-    3. 모델 학습 (learning)
-    4. 모델 평가 (evaluate)
+    1. 데이터 전처리 + Feature Engineering (preprocess)
+    2. 모델 초기화 (modeling) - 6개 개별 모델 + 앙상블
+    3. 10-Fold 교차검증 평가 (evaluate)
+    
+    ### 개선 사항
+    - **StratifiedKFold 10-Fold CV**: 더 신뢰할 수 있는 평가
+    - **Feature Engineering**: FamilySize, IsAlone 추가
+    - **하이퍼파라미터 최적화**: RandomForest, LightGBM 튜닝
+    - **앙상블 모델**: 성능 좋은 4개 모델 결합 (RF, LGBM, LR, NB)
+    - **SVM 제거**: 성능 저하 원인 제거
     
     ### 반환 정보
     - **success**: 요청 성공 여부
-    - **results**: 각 모델의 정확도
+    - **results**: 각 모델의 정확도 (%)
         - logistic_regression: 로지스틱 회귀 정확도
         - naive_bayes: 나이브베이즈 정확도
         - random_forest: 랜덤포레스트 정확도
+        - decision_tree: 결정트리 정확도
         - lightgbm: LightGBM 정확도
-        - svm: SVM 정확도
+        - knn: KNN 정확도
+        - ensemble: 앙상블 모델 정확도 (VotingClassifier)
     - **message**: 응답 메시지
     
     ### 예시
@@ -223,11 +232,13 @@ async def evaluate_model():
     {
         "success": true,
         "results": {
-            "logistic_regression": 0.8123,
-            "naive_bayes": 0.7865,
-            "random_forest": 0.8315,
-            "lightgbm": 0.8258,
-            "svm": 0.8034
+            "logistic_regression": 80.12,
+            "naive_bayes": 77.09,
+            "random_forest": 82.15,
+            "decision_tree": 79.58,
+            "lightgbm": 81.34,
+            "knn": 79.91,
+            "ensemble": 83.05
         },
         "message": "모델 평가가 완료되었습니다."
     }
@@ -244,11 +255,7 @@ async def evaluate_model():
         logger.info("모델링 시작...")
         service.modeling()
         
-        # 3. 학습
-        logger.info("학습 시작...")
-        service.learning()
-        
-        # 4. 평가
+        # 3. 평가 (10-Fold CV)
         logger.info("평가 시작...")
         results = service.evaluate()
         
@@ -269,3 +276,69 @@ async def evaluate_model():
             "detail": error_detail
         }
 
+@router.get(
+    "/submit",
+    summary="Kaggle 제출 파일 생성",
+    description="정확도가 가장 높은 RandomForest 모델로 test 데이터를 예측하여 Kaggle 제출용 CSV 파일을 생성합니다.",
+    response_description="제출용 CSV 파일 다운로드"
+)
+async def submit_model():
+    """
+    모델 제출을 수행합니다.
+    
+    ### 처리 순서
+    1. 데이터 전처리 (preprocess)
+    2. 모델 초기화 (modeling)
+    3. RandomForest 모델로 전체 train 데이터 학습
+    4. Test 데이터 예측
+    5. Kaggle 제출용 CSV 파일 생성 (download/titanic_submission.csv)
+    
+    ### 반환 정보
+    - **PassengerId**: 승객 ID
+    - **Survived**: 생존 여부 (0: 사망, 1: 생존)
+    
+    ### 파일 형식
+    ```csv
+    PassengerId,Survived
+    892,0
+    893,1
+    894,0
+    ...
+    ```
+    """
+    try:
+        service = get_service()
+        
+        # 1. 전처리
+        logger.info("전처리 시작...")
+        service.preprocess()
+        
+        # 2. 모델링
+        logger.info("모델링 시작...")
+        service.modeling()
+        
+        # 3. 제출 파일 생성
+        logger.info("제출 파일 생성 시작...")
+        submission_path = service.submit()
+        
+        # 파일 경로를 상대 경로로 변환
+        # download/titanic_submission.csv
+        file_name = os.path.basename(submission_path)
+        
+        return FileResponse(
+            path=submission_path,
+            filename=file_name,
+            media_type='text/csv',
+            headers={"Content-Disposition": f"attachment; filename={file_name}"}
+        )
+        
+    except Exception as e:
+        import traceback
+        error_detail = traceback.format_exc()
+        logger.error(f"제출 파일 생성 중 오류 발생: {str(e)}")
+        return {
+            "success": False,
+            "message": "제출 파일 생성 중 오류가 발생했습니다.",
+            "error": str(e),
+            "detail": error_detail
+        }
