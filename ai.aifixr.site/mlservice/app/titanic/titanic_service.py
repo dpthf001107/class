@@ -20,7 +20,7 @@ logging.basicConfig(level=logging.INFO, format="%(message)s")
 logger = logging.getLogger(__name__)
 
 class TitanicService:
-    """타이타닉 승객 데이터 처리 및 머신러닝 서비스"""
+    """타이타닉 TITANIC 승객 데이터 처리 및 머신러닝 서비스"""
 
     def __init__(self):
         self.dataset = None  # TitanicDataset 객체
