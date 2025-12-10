@@ -181,6 +181,10 @@ class SeoulService:
         # crime 데이터프레임에 '자치구' 컬럼을 제일 앞에 추가
         df_crime.insert(0, '자치구', gu_names)
         
+        # 관서명을 '서울ㅇㅇ경찰서' 형식으로 변경
+        df_crime['관서명'] = station_names
+        logger.info(f"\n✅ 관서명이 '서울ㅇㅇ경찰서' 형식으로 변경되었습니다.")
+        
         # save 폴더에 저장
         save_path = os.path.join(self.dataset.sname, 'crime_with_gu.csv')
         df_crime.to_csv(save_path, index=False, encoding='utf-8-sig')
