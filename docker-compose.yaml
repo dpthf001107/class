@@ -229,6 +229,8 @@ services:
     ports:
       - "9003:9003"
     container_name: ml-service
+    env_file:
+      - .env
     networks:
       aifixr-network:
         aliases:

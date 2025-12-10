@@ -31,7 +31,7 @@ spring:
       # HTTP 클라이언트 타임아웃 및 연결 풀 설정
       httpclient:
         connect-timeout: 10000
-        response-timeout: 30s
+        response-timeout: 120s  # Excel 파일 처리 시간 고려하여 120초로 증가
         pool:
           max-connections: 1000
           max-idle-time: 30s
@@ -257,27 +257,16 @@ spring:
               args:
                 name: chatbotCircuitBreaker
         
-        # ML Service (Titanic)
-        - id: titanic-service-route
+        # ML Service (통합: /api/ml/**)
+        - id: ml-service-route
           uri: http://ml-service:9003
           predicates:
-            - Path=/api/titanic/**
+            - Path=/api/ml/**
           filters:
-            - RewritePath=/api/titanic/(?<segment>.*), /${segment}
+            - RewritePath=/api/ml/(?<segment>.*), /${segment}
             - name: CircuitBreaker
               args:
-                name: titanicCircuitBreaker
-        
-        # ML Service (ESG Grade)
-        - id: grade-service-route
-          uri: http://ml-service:9003
-          predicates:
-            - Path=/api/grade/**
-          filters:
-            - RewritePath=/api/grade/(?<segment>.*), /${segment}
-            - name: CircuitBreaker
-              args:
-                name: gradeCircuitBreaker
+                name: mlCircuitBreaker
 
 # ========================================
 # Resilience4j Circuit Breaker 설정
@@ -353,6 +342,8 @@ resilience4j:
         automatic-transition-from-open-to-half-open-enabled: true
   timelimiter:
     instances:
+      mlCircuitBreaker:
+        timeout-duration: 180s
       oauthCircuitBreaker:
         timeout-duration: 30s
 

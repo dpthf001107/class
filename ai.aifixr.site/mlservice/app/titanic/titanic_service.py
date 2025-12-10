@@ -15,6 +15,7 @@ from sklearn.metrics import accuracy_score
 from app.titanic.titanic_method import TitanicMethod
 from app.titanic.titanic_dataset import TitanicDataset
 
+
 # Logger 설정
 logging.basicConfig(level=logging.INFO, format="%(message)s")
 logger = logging.getLogger(__name__)
@@ -111,6 +112,28 @@ class TitanicService:
             self.dataset.test = self.dataset.test.fillna(self.dataset.test.median())
 
         logger.info("❤️❤️ 전처리 완료!")
+        
+        # 전처리된 데이터 미리보기 (숫자로 변환된 상태)
+        logger.info("\n" + "="*80)
+        logger.info("전처리된 Train 데이터 (상위 10개 샘플)")
+        logger.info("="*80)
+        logger.info(f"\n{self.dataset.train.head(10).to_string()}")
+        
+        logger.info("\n" + "="*80)
+        logger.info("데이터 타입 정보")
+        logger.info("="*80)
+        logger.info(f"\n{self.dataset.train.dtypes.to_string()}")
+        
+        logger.info("\n" + "="*80)
+        logger.info("데이터 통계 정보")
+        logger.info("="*80)
+        logger.info(f"\n{self.dataset.train.describe().to_string()}")
+        
+        logger.info("\n" + "="*80)
+        logger.info(f"Train 데이터 shape: {self.dataset.train.shape}")
+        logger.info(f"Test 데이터 shape: {self.dataset.test.shape}")
+        logger.info(f"Label shape: {self.dataset.label.shape}")
+        logger.info("="*80 + "\n")
 
     # -----------------------------
     # 모델링, 학습, 평가
