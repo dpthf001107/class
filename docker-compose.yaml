@@ -231,6 +231,10 @@ services:
     container_name: ml-service
     env_file:
       - .env
+    volumes:
+      - ./ai.aifixr.site/mlservice/app/seoul_crime/save:/app/app/seoul_crime/save
+      - ./ai.aifixr.site/mlservice/app/nlp/save:/app/app/nlp/save
+      - ./ai.aifixr.site/mlservice/app/nlp:/app/app/nlp
     networks:
       aifixr-network:
         aliases:

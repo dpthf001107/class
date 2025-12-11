@@ -286,7 +286,7 @@ class SeoulService:
         
     def generate_heatmap(self):
         """
-        서울 범죄 데이터 히트맵 생성
+        서울 범죄 발생 데이터 히트맵 생성
         
         SeoulMethod의 generate_heatmap 메서드를 호출하여 전체 프로세스를 수행합니다.
         """
@@ -305,7 +305,7 @@ class SeoulService:
                 pop_path=pop_path,
                 save_dir=save_dir,
                 df_pop_cleaned=self.df_pop_cleaned,
-                title_prefix="서울시 범죄 발생률 정규화 히트맵 (인구수 대비"
+                crime_type='발생'
             )
             
             return result
@@ -314,6 +314,39 @@ class SeoulService:
             import traceback
             error_detail = traceback.format_exc()
             logger.error(f"❌ 히트맵 생성 오류: {str(e)}")
+            logger.error(error_detail)
+            raise
+    
+    def generate_heatmap_arrest(self):
+        """
+        서울 범죄 검거 데이터 히트맵 생성
+        
+        SeoulMethod의 generate_heatmap 메서드를 호출하여 검거 히트맵을 생성합니다.
+        """
+        try:
+            # 한글 폰트 재설정 (히트맵 생성 전)
+            setup_korean_font()
+            
+            # 파일 경로 설정
+            crime_csv_path = os.path.join(self.dataset.sname, 'crime_with_gu.csv')
+            pop_path = os.path.join(self.data_path, 'pop.xls')
+            save_dir = self.dataset.sname
+            
+            # SeoulMethod의 generate_heatmap 메서드 호출 (검거 데이터)
+            result = self.method.generate_heatmap(
+                crime_csv_path=crime_csv_path,
+                pop_path=pop_path,
+                save_dir=save_dir,
+                df_pop_cleaned=self.df_pop_cleaned,
+                crime_type='검거'
+            )
+            
+            return result
+            
+        except Exception as e:
+            import traceback
+            error_detail = traceback.format_exc()
+            logger.error(f"❌ 검거 히트맵 생성 오류: {str(e)}")
             logger.error(error_detail)
             raise
 

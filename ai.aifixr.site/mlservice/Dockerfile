@@ -10,6 +10,7 @@ RUN apt-get update && apt-get install -y \
     gcc \
     g++ \
     fonts-nanum \
+    default-jdk \
     && rm -rf /var/lib/apt/lists/*
 
 # requirements.txt 먼저 복사하고 설치 (캐시 최적화)

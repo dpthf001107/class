@@ -120,6 +120,58 @@ async def generate_heatmap(style: str = "coolwarm"):
         )
 
 @router.get(
+    "/heatmap/arrest",
+    summary="서울 범죄 검거 데이터 히트맵 생성",
+    description="서울시 범죄 검거 데이터를 기반으로 정규화된 히트맵을 생성합니다."
+)
+async def generate_heatmap_arrest():
+    """
+    서울 범죄 검거 데이터 히트맵 생성
+    
+    - CSV 파일에서 범죄 검거 데이터를 읽어옵니다.
+    - 자치구별로 검거 건수를 합산합니다.
+    - 인구수 대비 검거률을 계산합니다.
+    - MinMax 정규화를 수행합니다.
+    - 빨간색 계열 히트맵을 생성합니다.
+    """
+    try:
+        service = get_service()
+        result = service.generate_heatmap_arrest()
+        
+        # 검거 히트맵 파일 경로
+        heatmap_path = result["heatmap_files"][0]
+        
+        if os.path.exists(heatmap_path):
+            return FileResponse(
+                heatmap_path,
+                media_type="image/png",
+                filename=os.path.basename(heatmap_path)
+            )
+        else:
+            return JSONResponse(
+                status_code=404,
+                content={
+                    "status": "error",
+                    "message": f"히트맵 파일을 찾을 수 없습니다: {heatmap_path}"
+                }
+            )
+            
+    except Exception as e:
+        import traceback
+        error_detail = traceback.format_exc()
+        logger.error(f"❌ 검거 히트맵 생성 오류: {str(e)}")
+        logger.error(error_detail)
+        return JSONResponse(
+            status_code=500,
+            content={
+                "status": "error",
+                "message": "검거 히트맵 생성 중 오류가 발생했습니다.",
+                "error": str(e),
+                "detail": error_detail
+            }
+        )
+
+@router.get(
     "/heatmap/info",
     summary="히트맵 생성 정보 조회",
     description="생성된 히트맵의 데이터 요약 정보를 조회합니다."

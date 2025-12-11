@@ -5,6 +5,7 @@ from app.titanic.titanic_router import router as titanic_router
 from app.grade.grade_router import router as grade_router
 from app.seoul_crime.seoul_router import router as seoul_router
 from app.us_unemployment.router import router as usa_router
+from app.nlp.nlp_router import router as nlp_router
 
 # FastAPI 앱 생성
 app = FastAPI(
@@ -62,6 +63,11 @@ app.include_router(seoul_router, prefix="/seoul")
 # 게이트웨이에서 /api/ml/usa/** → /usa/**로 RewritePath 변환되므로
 # ML 서비스에서는 /usa prefix로 받음
 app.include_router(usa_router, prefix="/usa")
+
+# NLP 라우터 연결
+# 게이트웨이에서 /api/ml/nlp/** → /nlp/**로 RewritePath 변환되므로
+# ML 서비스에서는 /nlp prefix로 받음
+app.include_router(nlp_router, prefix="/nlp")
 
 if __name__ == "__main__":
     uvicorn.run(app, host="0.0.0.0", port=9003)

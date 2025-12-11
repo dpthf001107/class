@@ -183,7 +183,7 @@ class SeoulMethod(object):
 
     def generate_heatmap(self, crime_csv_path: str, pop_path: str, save_dir: str, 
                          df_pop_cleaned: pd.DataFrame = None,
-                         title_prefix: str = "서울시 범죄 발생률 정규화 히트맵 (인구수 대비") -> dict:
+                         crime_type: str = '발생') -> dict:
         """
         서울 범죄 데이터 히트맵 생성 (전체 프로세스 포함)
         
@@ -192,12 +192,34 @@ class SeoulMethod(object):
             pop_path: 인구 데이터 Excel 파일 경로
             save_dir: 저장 경로
             df_pop_cleaned: 정리된 인구 데이터 (선택사항, 있으면 재사용)
-            title_prefix: 히트맵 제목 접두사
+            crime_type: 범죄 유형 ('발생' 또는 '검거'), 기본값: '발생'
         
         Returns:
             생성된 히트맵 파일 경로와 데이터 요약 정보를 포함한 딕셔너리
         """
         try:
+            # crime_type 검증
+            if crime_type not in ['발생', '검거']:
+                raise ValueError(f"crime_type은 '발생' 또는 '검거'여야 합니다. 현재 값: {crime_type}")
+            
+            # crime_type에 따른 컬럼명 설정
+            if crime_type == '검거':
+                numeric_cols = ['살인 검거', '강도 검거', '강간 검거', '절도 검거', '폭력 검거']
+                required_cols = ['자치구', '살인 검거', '강도 검거', '강간 검거', '절도 검거', '폭력 검거']
+                crime_cols = ['살인 검거', '강도 검거', '강간 검거', '절도 검거', '폭력 검거']
+                title_prefix = "서울시 범죄 검거률 정규화 히트맵 (인구수 대비"
+                cbar_label = '정규화된 범죄 검거률 (인구수 대비)'
+                heatmap_filename = 'heatmap_arrest.png'
+                log_prefix = "검거"
+            else:  # crime_type == '발생'
+                numeric_cols = ['살인 발생', '강도 발생', '강간 발생', '절도 발생', '폭력 발생']
+                required_cols = ['자치구', '살인 발생', '강도 발생', '강간 발생', '절도 발생', '폭력 발생']
+                crime_cols = ['살인 발생', '강도 발생', '강간 발생', '절도 발생', '폭력 발생']
+                title_prefix = "서울시 범죄 발생률 정규화 히트맵 (인구수 대비"
+                cbar_label = '정규화된 범죄 발생률 (인구수 대비)'
+                heatmap_filename = 'heatmap.png'
+                log_prefix = "발생"
+            
             # 1. CSV 파일 읽기
             logger.info(f"\n📂 CSV 파일 읽기: {crime_csv_path}")
             
@@ -210,7 +232,6 @@ class SeoulMethod(object):
             logger.info(f"  원본 컬럼: {df.columns.tolist()}")
             
             # 숫자 컬럼에서 쉼표 제거 및 숫자 변환
-            numeric_cols = ['살인 발생', '강도 발생', '강간 발생', '절도 발생', '폭력 발생']
             for col in numeric_cols:
                 if col in df.columns:
                     # 문자열인 경우 쉼표 제거 후 숫자 변환
@@ -221,8 +242,7 @@ class SeoulMethod(object):
             logger.info(f"  상위 3개:\n{df.head(3).to_string()}")
             
             # 2. 히트맵 생성에 필요한 컬럼만 남기기
-            logger.info("\n🧹 히트맵 생성에 필요한 컬럼만 선택")
-            required_cols = ['자치구', '살인 발생', '강도 발생', '강간 발생', '절도 발생', '폭력 발생']
+            logger.info(f"\n🧹 히트맵 생성에 필요한 컬럼만 선택 ({log_prefix} 데이터)")
             
             # 필수 컬럼이 모두 있는지 확인
             missing_cols = [col for col in required_cols if col not in df.columns]
@@ -233,12 +253,11 @@ class SeoulMethod(object):
             logger.info(f"  선택된 컬럼: {df_selected.columns.tolist()}")
             logger.info(f"  데이터 shape: {df_selected.shape}")
             
-            # 3. 동일 자치구에 여러 관서가 있는 경우 발생 건수 합산
-            logger.info("\n📊 자치구별 발생 건수 합산")
+            # 3. 동일 자치구에 여러 관서가 있는 경우 건수 합산
+            logger.info(f"\n📊 자치구별 {log_prefix} 건수 합산")
             logger.info(f"  합산 전 행 수: {len(df_selected)}")
             logger.info(f"  자치구별 관서 수:\n{df_selected.groupby('자치구').size()}")
             
-            crime_cols = ['살인 발생', '강도 발생', '강간 발생', '절도 발생', '폭력 발생']
             df_grouped = df_selected.groupby('자치구')[crime_cols].sum()
             
             logger.info(f"  합산 후 행 수: {len(df_grouped)}")
@@ -277,36 +296,60 @@ class SeoulMethod(object):
             logger.info(f"  머지 후 shape: {df_merged.shape}")
             logger.info(f"  머지 결과 (상위 3개):\n{df_merged.head(3).to_string()}")
             
-            # 5. 인구수 대비 발생률 계산 (인구 10만명당 발생률)
-            logger.info("\n📊 인구수 대비 발생률 계산 (인구 10만명당)")
+            # 5. 인구수 대비 비율 계산 (인구 10만명당)
+            logger.info(f"\n📊 인구수 대비 {log_prefix}률 계산 (인구 10만명당)")
             df_rate = df_merged[crime_cols].div(df_merged['인구'], axis=0) * 100000
-            logger.info(f"  발생률 계산 완료")
-            logger.info(f"  발생률 결과 (상위 3개):\n{df_rate.head(3).to_string()}")
+            logger.info(f"  {log_prefix}률 계산 완료")
+            logger.info(f"  {log_prefix}률 결과 (상위 3개):\n{df_rate.head(3).to_string()}")
             
-            # 6. 총 범죄 발생률 컬럼 추가
-            logger.info("\n➕ 총 범죄 발생률 컬럼 추가")
+            # 6. 총 범죄 비율 컬럼 추가 (폭력 다음에 추가)
+            logger.info(f"\n➕ 총 범죄 {log_prefix}률 컬럼 추가")
             df_rate['범죄'] = df_rate.sum(axis=1)
-            logger.info(f"  추가된 컬럼: {df_rate.columns.tolist()}")
-            logger.info(f"  총 범죄 발생률 (상위 5개):\n{df_rate[['범죄']].head(5).to_string()}")
             
-            # 7. 정규화(Normalization) 수행 (발생률 기준)
-            logger.info("\n📐 MinMax 정규화 수행 (발생률 기준, 0~1 사이로 스케일링)")
+            # 컬럼 순서 재정렬: 살인, 강도, 강간, 절도, 폭력, 범죄 순서
+            if crime_type == '검거':
+                column_order = ['살인 검거', '강도 검거', '강간 검거', '절도 검거', '폭력 검거', '범죄']
+            else:
+                column_order = ['살인 발생', '강도 발생', '강간 발생', '절도 발생', '폭력 발생', '범죄']
+            
+            # 존재하는 컬럼만 재정렬
+            existing_columns = [col for col in column_order if col in df_rate.columns]
+            if len(existing_columns) != len(column_order):
+                missing = set(column_order) - set(existing_columns)
+                logger.warning(f"⚠️ 일부 컬럼이 없습니다: {missing}")
+            
+            df_rate = df_rate[existing_columns]
+            logger.info(f"  추가된 컬럼: {df_rate.columns.tolist()}")
+            logger.info(f"  총 범죄 {log_prefix}률 (상위 5개):\n{df_rate[['범죄']].head(5).to_string()}")
+            
+            # 7. 정규화(Normalization) 수행
+            logger.info(f"\n📐 MinMax 정규화 수행 ({log_prefix}률 기준, 0~1 사이로 스케일링)")
+            # 컬럼 순서 저장
+            column_order_before_norm = df_rate.columns.tolist()
+            
             scaler = MinMaxScaler()
             df_norm = pd.DataFrame(
                 scaler.fit_transform(df_rate),
                 columns=df_rate.columns,
                 index=df_rate.index
             )
+            
+            # 컬럼 순서가 유지되었는지 확인
+            if df_norm.columns.tolist() != column_order_before_norm:
+                logger.warning(f"⚠️ 정규화 후 컬럼 순서가 변경되었습니다. 재정렬합니다.")
+                df_norm = df_norm[column_order_before_norm]
+            
             logger.info(f"  정규화 완료")
             logger.info(f"  정규화 결과 (상위 3개):\n{df_norm.head(3).to_string()}")
             
-            # 8. 정규화된 범죄 발생률(총 범죄) 기준으로 내림차순 정렬
-            logger.info("\n📊 정규화된 범죄 발생률(총 범죄) 기준으로 내림차순 정렬")
+            # 8. 정규화된 범죄 비율(총 범죄) 기준으로 내림차순 정렬
+            logger.info(f"\n📊 정규화된 범죄 {log_prefix}률(총 범죄) 기준으로 내림차순 정렬")
+            # 검거일 때는 정규화된 검거율 기준으로 정렬
             df_norm = df_norm.sort_values(by='범죄', ascending=False)
             logger.info(f"  정렬 완료")
             logger.info(f"  정렬 결과 (상위 5개):\n{df_norm[['범죄']].head(5).to_string()}")
             
-            # 9. 히트맵 2종 생성 (coolwarm, viridis)
+            # 9. 히트맵 생성 (빨간색 계열-하얀색)
             logger.info("\n🎨 히트맵 생성 중...")
             
             # 저장 경로 설정
@@ -314,41 +357,36 @@ class SeoulMethod(object):
             
             heatmap_files = []
             
-            # (1) coolwarm 히트맵
+            # X축 레이블 생성 (범죄 유형만 표시, '발생' 또는 '검거' 제거)
+            x_labels = []
+            for col in df_norm.columns:
+                if col == '범죄':
+                    x_labels.append('범죄')
+                else:
+                    # '살인 발생' -> '살인', '살인 검거' -> '살인'
+                    label = col.replace(' 발생', '').replace(' 검거', '')
+                    x_labels.append(label)
+            
+            # 히트맵 색상 설정: 검거는 파란색, 발생은 빨간색
+            cmap_color = "Blues" if crime_type == '검거' else "Reds"
+            
+            # 히트맵 생성
             plt.figure(figsize=(14, 10))
-            sns.heatmap(df_norm, annot=True, fmt=".6f", cmap="coolwarm", 
-                       xticklabels=True, yticklabels=True,
-                       cbar_kws={'label': '정규화된 범죄 발생률 (인구수 대비)'})
-            plt.title(f"{title_prefix}, coolwarm)", fontsize=18, pad=20, fontweight='bold')
+            sns.heatmap(df_norm, annot=True, fmt=".6f", cmap=cmap_color, 
+                       xticklabels=x_labels, yticklabels=True,
+                       cbar_kws={'label': cbar_label})
+            plt.title(f"{title_prefix})", fontsize=18, pad=20, fontweight='bold')
             plt.xlabel('범죄 유형', fontsize=14, fontweight='bold')
             plt.ylabel('자치구', fontsize=14, fontweight='bold')
             plt.xticks(rotation=45, ha='right', fontsize=11)
             plt.yticks(rotation=0, fontsize=11)
             plt.tight_layout()
             
-            coolwarm_path = os.path.join(save_dir, 'heatmap_coolwarm.png')
-            plt.savefig(coolwarm_path, dpi=300, bbox_inches='tight', facecolor='white')
+            heatmap_path = os.path.join(save_dir, heatmap_filename)
+            plt.savefig(heatmap_path, dpi=300, bbox_inches='tight', facecolor='white')
             plt.close()
-            heatmap_files.append(coolwarm_path)
-            logger.info(f"  ✅ coolwarm 히트맵 저장: {coolwarm_path}")
-            
-            # (2) viridis 히트맵
-            plt.figure(figsize=(14, 10))
-            sns.heatmap(df_norm, annot=True, fmt=".6f", cmap="viridis",
-                       xticklabels=True, yticklabels=True,
-                       cbar_kws={'label': '정규화된 범죄 발생률 (인구수 대비)'})
-            plt.title(f"{title_prefix}, viridis)", fontsize=18, pad=20, fontweight='bold')
-            plt.xlabel('범죄 유형', fontsize=14, fontweight='bold')
-            plt.ylabel('자치구', fontsize=14, fontweight='bold')
-            plt.xticks(rotation=45, ha='right', fontsize=11)
-            plt.yticks(rotation=0, fontsize=11)
-            plt.tight_layout()
-            
-            viridis_path = os.path.join(save_dir, 'heatmap_viridis.png')
-            plt.savefig(viridis_path, dpi=300, bbox_inches='tight', facecolor='white')
-            plt.close()
-            heatmap_files.append(viridis_path)
-            logger.info(f"  ✅ viridis 히트맵 저장: {viridis_path}")
+            heatmap_files.append(heatmap_path)
+            logger.info(f"  ✅ 히트맵 저장: {heatmap_path}")
             
             logger.info("\n✅ 히트맵 생성 완료!")
             
