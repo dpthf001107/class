@@ -4,6 +4,7 @@ import uvicorn  # pyright: ignore[reportMissingImports]
 from app.titanic.titanic_router import router as titanic_router
 from app.grade.grade_router import router as grade_router
 from app.seoul_crime.seoul_router import router as seoul_router
+from app.us_unemployment.router import router as usa_router
 
 # FastAPI 앱 생성
 app = FastAPI(
@@ -56,6 +57,11 @@ app.include_router(grade_router, prefix="/grade")
 # 게이트웨이에서 /api/seoul/** → /seoul/**로 RewritePath 변환되므로
 # ML 서비스에서는 /seoul prefix로 받음
 app.include_router(seoul_router, prefix="/seoul")
+
+# 미국 실업률 라우터 연결
+# 게이트웨이에서 /api/ml/usa/** → /usa/**로 RewritePath 변환되므로
+# ML 서비스에서는 /usa prefix로 받음
+app.include_router(usa_router, prefix="/usa")
 
 if __name__ == "__main__":
     uvicorn.run(app, host="0.0.0.0", port=9003)

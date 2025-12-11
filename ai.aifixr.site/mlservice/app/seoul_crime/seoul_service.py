@@ -2,9 +2,57 @@ import pandas as pd
 import logging
 import numpy as np
 import os
+import matplotlib
+matplotlib.use('Agg')  # GUI 백엔드 없이 사용
+import matplotlib.pyplot as plt
+import matplotlib.font_manager as fm
+from sklearn.preprocessing import MinMaxScaler
 from app.seoul_crime.seoul_method import SeoulMethod
 from app.seoul_crime.seoul_data import SeoulData
 from app.seoul_crime.kakao_map_singletone import KakaoMapSingleton
+
+# 한글 폰트 설정
+def setup_korean_font():
+    """한글 폰트 설정"""
+    _logger = logging.getLogger(__name__)
+    try:
+        # 나눔고딕 폰트 경로 찾기
+        font_paths = [
+            '/usr/share/fonts/truetype/nanum/NanumGothic.ttf',
+            '/usr/share/fonts/truetype/nanum/NanumGothicCoding.ttf',
+            '/System/Library/Fonts/AppleGothic.ttf',  # macOS
+            'C:/Windows/Fonts/malgun.ttf',  # Windows
+        ]
+        
+        font_path = None
+        for path in font_paths:
+            if os.path.exists(path):
+                font_path = path
+                break
+        
+        if font_path:
+            font_prop = fm.FontProperties(fname=font_path)
+            plt.rcParams['font.family'] = font_prop.get_name()
+            _logger.info(f"✅ 한글 폰트 설정 완료: {font_path}")
+        else:
+            # 폰트 파일을 찾지 못한 경우, 시스템 폰트 목록에서 한글 폰트 찾기
+            font_list = [f.name for f in fm.fontManager.ttflist]
+            korean_fonts = ['NanumGothic', 'NanumGothicCoding', 'Malgun Gothic', 'AppleGothic', 'Noto Sans CJK KR']
+            for font_name in korean_fonts:
+                if font_name in font_list:
+                    plt.rcParams['font.family'] = font_name
+                    _logger.info(f"✅ 한글 폰트 설정 완료: {font_name}")
+                    return
+            
+            # 한글 폰트를 찾지 못한 경우 경고
+            _logger.warning("⚠️ 한글 폰트를 찾을 수 없습니다. 기본 폰트를 사용합니다.")
+            plt.rcParams['font.family'] = 'DejaVu Sans'
+    except Exception as e:
+        _logger.warning(f"⚠️ 한글 폰트 설정 중 오류: {str(e)}")
+        plt.rcParams['font.family'] = 'DejaVu Sans'
+
+# 모듈 로드 시 한글 폰트 설정
+setup_korean_font()
 
 # Logger 설정
 logging.basicConfig(level=logging.INFO, format="%(message)s")
@@ -18,6 +66,7 @@ class SeoulService:
         self.method = SeoulMethod()
         self.dataset = SeoulData()
         self.data_path = self.dataset.dname
+        self.df_pop_cleaned = None  # 정리된 인구 데이터 저장
 
     def preprocess(self):
         """CCTV와 인구 데이터 전처리 및 머지"""
@@ -58,29 +107,11 @@ class SeoulService:
         if '자치구' not in df_pop.columns:
             raise ValueError(f"'자치구' 컬럼을 찾을 수 없습니다. 사용 가능한 컬럼: {df_pop.columns.tolist()}")
         
-        # pop 컬럼 편집 
-        # axis = 1 방향으로 자치구와 좌로부터 4번째 컬럼만 남기고 모두 삭제 
-        # axis = 0 방향으로 위로부터 2, 3, 4 번째 행을 제거
-        logger.info("\n🧹 인구 데이터 컬럼 및 행 정리")
+        # 인구 데이터 정리 (메서드로 분리)
+        df_pop = self._clean_population_data(df_pop)
         
-        # 1. axis=1: 자치구 컬럼과 좌로부터 4번째 컬럼만 남기고 나머지 삭제
-        if '자치구' in df_pop.columns:
-            # 자치구 컬럼의 인덱스 찾기
-            자치구_idx = df_pop.columns.get_loc('자치구')
-            # 좌로부터 4번째 컬럼 (인덱스 3)
-            if len(df_pop.columns) > 3:
-                cols_to_keep = [df_pop.columns[자치구_idx], df_pop.columns[3]]
-                df_pop = df_pop[cols_to_keep]
-                logger.info(f"  유지된 컬럼: {cols_to_keep}")
-            else:
-                logger.warning("  컬럼이 4개 미만입니다.")
-        
-        # 2. axis=0: 위로부터 2, 3, 4 번째 행 제거 (인덱스 1, 2, 3)
-        if len(df_pop) > 3:
-            df_pop = df_pop.drop(df_pop.index[1:4])  # 인덱스 1, 2, 3 제거
-            logger.info(f"  인덱스 1, 2, 3 행 제거 완료")
-        else:
-            logger.warning("  행이 4개 미만입니다.")
+        # 정리된 인구 데이터를 인스턴스 변수로 저장 (generate_heatmap에서 재사용)
+        self.df_pop_cleaned = df_pop.copy()
         
 
 
@@ -214,6 +245,76 @@ class SeoulService:
 
             
         }
-
+    
+    def _clean_population_data(self, df_pop):
+        """인구 데이터 정리 메서드 (preprocess와 generate_heatmap에서 공통 사용)"""
+        logger.info("\n🧹 인구 데이터 컬럼 및 행 정리")
+        
+        # 1. axis=1: 자치구 컬럼과 좌로부터 4번째 컬럼만 남기고 나머지 삭제
+        if '자치구' in df_pop.columns:
+            # 자치구 컬럼의 인덱스 찾기
+            자치구_idx = df_pop.columns.get_loc('자치구')
+            # 좌로부터 4번째 컬럼 (인덱스 3)
+            if len(df_pop.columns) > 3:
+                cols_to_keep = [df_pop.columns[자치구_idx], df_pop.columns[3]]
+                df_pop = df_pop[cols_to_keep]
+                logger.info(f"  유지된 컬럼: {cols_to_keep}")
+            else:
+                logger.warning("  컬럼이 4개 미만입니다.")
+        
+        # 2. axis=0: 위로부터 2, 3, 4 번째 행 제거 (인덱스 1, 2, 3)
+        if len(df_pop) > 3:
+            df_pop = df_pop.drop(df_pop.index[1:4])  # 인덱스 1, 2, 3 제거
+            logger.info(f"  인덱스 1, 2, 3 행 제거 완료")
+        else:
+            logger.warning("  행이 4개 미만입니다.")
+        
+        # 3. 인구수 컬럼명을 '인구'로 변경 및 데이터 타입 변환
+        if len(df_pop.columns) >= 2:
+            # 두 번째 컬럼이 인구수 컬럼
+            pop_col = df_pop.columns[1]
+            df_pop = df_pop.rename(columns={pop_col: '인구'})
+            
+            # 숫자가 아닌 행 제거 (예: '계', '합계' 등)
+            df_pop = df_pop[df_pop['인구'].astype(str).str.replace(',', '').str.isdigit()]
+            
+            # 인구수 데이터 타입 변환 (쉼표 제거)
+            df_pop['인구'] = df_pop['인구'].astype(str).str.replace(',', '').astype(float)
+            logger.info(f"  인구 데이터 정리 완료")
+        
+        return df_pop
+        
+    def generate_heatmap(self):
+        """
+        서울 범죄 데이터 히트맵 생성
+        
+        SeoulMethod의 generate_heatmap 메서드를 호출하여 전체 프로세스를 수행합니다.
+        """
+        try:
+            # 한글 폰트 재설정 (히트맵 생성 전)
+            setup_korean_font()
+            
+            # 파일 경로 설정
+            crime_csv_path = os.path.join(self.dataset.sname, 'crime_with_gu.csv')
+            pop_path = os.path.join(self.data_path, 'pop.xls')
+            save_dir = self.dataset.sname
+            
+            # SeoulMethod의 generate_heatmap 메서드 호출 (전체 프로세스 포함)
+            result = self.method.generate_heatmap(
+                crime_csv_path=crime_csv_path,
+                pop_path=pop_path,
+                save_dir=save_dir,
+                df_pop_cleaned=self.df_pop_cleaned,
+                title_prefix="서울시 범죄 발생률 정규화 히트맵 (인구수 대비"
+            )
+            
+            return result
+            
+        except Exception as e:
+            import traceback
+            error_detail = traceback.format_exc()
+            logger.error(f"❌ 히트맵 생성 오류: {str(e)}")
+            logger.error(error_detail)
+            raise
 
         
