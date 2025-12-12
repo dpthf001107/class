@@ -1,6 +1,7 @@
 from fastapi import APIRouter
 from fastapi.responses import FileResponse, JSONResponse
 from app.nlp.emma.emma_wordcloud import EmmaWordCloud
+from app.nlp.samsung.samsung_wordcloud import SamsungWordCloud
 import logging
 import os
 
@@ -18,6 +19,10 @@ router = APIRouter(
 def get_emma_service() -> EmmaWordCloud:
     """EmmaWordCloud 인스턴스 반환"""
     return EmmaWordCloud()
+
+def get_samsung_service() -> SamsungWordCloud:
+    """SamsungWordCloud 인스턴스 반환"""
+    return SamsungWordCloud()
 
 @router.get(
     "/",
@@ -79,6 +84,69 @@ async def generate_emma_wordcloud(
                 save_file_path,
                 media_type="image/png",
                 filename="emma_wordcloud.png"
+            )
+        else:
+            return JSONResponse(
+                status_code=500,
+                content={
+                    "status": "error",
+                    "message": "워드클라우드 파일 생성에 실패했습니다."
+                }
+            )
+            
+    except Exception as e:
+        import traceback
+        error_detail = traceback.format_exc()
+        logger.error(f"❌ 워드클라우드 생성 오류: {str(e)}")
+        logger.error(error_detail)
+        return JSONResponse(
+            status_code=500,
+            content={
+                "status": "error",
+                "message": "워드클라우드 생성 중 오류가 발생했습니다.",
+                "error": str(e),
+                "detail": error_detail
+            }
+        )
+
+@router.get(
+    "/samsung",
+    summary="삼성 지속가능경영보고서 워드클라우드 생성",
+    description="삼성전자 2018년 지속가능경영보고서를 분석하여 워드클라우드를 생성합니다."
+)
+async def generate_samsung_wordcloud(
+    filename: str = "samsung_wordcloud.png"
+):
+    """
+    삼성 지속가능경영보고서 워드클라우드 생성
+    
+    - 삼성전자 2018년 지속가능경영보고서를 분석합니다.
+    - 한국어 형태소 분석을 통해 명사를 추출합니다.
+    - 워드클라우드 이미지를 생성하여 반환합니다.
+    
+    Parameters:
+    - filename: 저장할 파일명 (기본값: "samsung_wordcloud.png")
+    """
+    try:
+        # SamsungWordCloud 인스턴스 생성
+        samsung = get_samsung_service()
+        
+        # 워드클라우드 생성 (자동으로 save 폴더에 저장됨)
+        wc = samsung.draw_wordcloud(
+            filename=filename,
+            auto_save=True,
+            show=False
+        )
+        
+        # save 폴더에서 파일 경로 가져오기
+        save_file_path = os.path.join(samsung.save_dir, filename)
+        
+        # 파일이 존재하는지 확인
+        if os.path.exists(save_file_path):
+            return FileResponse(
+                save_file_path,
+                media_type="image/png",
+                filename=filename
             )
         else:
             return JSONResponse(
