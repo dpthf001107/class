@@ -3,6 +3,8 @@ from pandas import DataFrame
 from app.seoul_crime.seoul_data import SeoulData   
 import logging
 import os
+import json
+import folium
 import matplotlib
 matplotlib.use('Agg')  # GUI 백엔드 없이 사용
 import matplotlib.pyplot as plt
@@ -404,6 +406,279 @@ class SeoulMethod(object):
             
         except Exception as e:
             logger.error(f"❌ 히트맵 생성 오류: {str(e)}")
+            import traceback
+            logger.error(traceback.format_exc())
+            raise
+    
+    def _calculate_crime_rate(self, crime_csv_path: str, pop_path: str, 
+                              df_pop_cleaned: pd.DataFrame = None,
+                              crime_type: str = '발생') -> pd.DataFrame:
+        """
+        범죄율 데이터 계산 (히트맵 생성 로직 재사용)
+        
+        Args:
+            crime_csv_path: 범죄 데이터 CSV 파일 경로
+            pop_path: 인구 데이터 Excel 파일 경로
+            df_pop_cleaned: 정리된 인구 데이터 (선택사항)
+            crime_type: 범죄 유형 ('발생' 또는 '검거')
+        
+        Returns:
+            자치구별 정규화된 범죄율 데이터프레임 (인덱스: 자치구, 컬럼: 범죄 유형)
+        """
+        # crime_type에 따른 컬럼명 설정
+        if crime_type == '검거':
+            numeric_cols = ['살인 검거', '강도 검거', '강간 검거', '절도 검거', '폭력 검거']
+            required_cols = ['자치구', '살인 검거', '강도 검거', '강간 검거', '절도 검거', '폭력 검거']
+            crime_cols = ['살인 검거', '강도 검거', '강간 검거', '절도 검거', '폭력 검거']
+        else:  # crime_type == '발생'
+            numeric_cols = ['살인 발생', '강도 발생', '강간 발생', '절도 발생', '폭력 발생']
+            required_cols = ['자치구', '살인 발생', '강도 발생', '강간 발생', '절도 발생', '폭력 발생']
+            crime_cols = ['살인 발생', '강도 발생', '강간 발생', '절도 발생', '폭력 발생']
+        
+        # CSV 파일 읽기
+        df = pd.read_csv(crime_csv_path, encoding='utf-8-sig')
+        
+        # 숫자 컬럼에서 쉼표 제거 및 숫자 변환
+        for col in numeric_cols:
+            if col in df.columns:
+                df[col] = df[col].astype(str).str.replace(',', '').astype(float)
+        
+        # 필수 컬럼 확인
+        missing_cols = [col for col in required_cols if col not in df.columns]
+        if missing_cols:
+            raise ValueError(f"필수 컬럼이 없습니다: {missing_cols}")
+        
+        df_selected = df[required_cols].copy()
+        
+        # 자치구별 합산
+        df_grouped = df_selected.groupby('자치구')[crime_cols].sum()
+        
+        # 인구 데이터 로드
+        if df_pop_cleaned is not None:
+            df_pop = df_pop_cleaned.copy()
+        else:
+            df_pop = self.xlsx_to_df(pop_path)
+            if '자치구' not in df_pop.columns:
+                if '자치구_자치구' in df_pop.columns:
+                    df_pop = df_pop.rename(columns={'자치구_자치구': '자치구'})
+                else:
+                    if len(df_pop.columns) > 0:
+                        first_col = df_pop.columns[0]
+                        if '기간' not in str(first_col) and '합계' not in str(first_col):
+                            df_pop = df_pop.rename(columns={first_col: '자치구'})
+            df_pop = self._clean_population_data(df_pop)
+        
+        # 머지
+        df_merged = df_grouped.reset_index().merge(df_pop, on='자치구', how='inner')
+        df_merged = df_merged.set_index('자치구')
+        
+        # 인구수 대비 비율 계산 (인구 10만명당)
+        df_rate = df_merged[crime_cols].div(df_merged['인구'], axis=0) * 100000
+        
+        # 총 범죄 비율 컬럼 추가
+        df_rate['범죄'] = df_rate.sum(axis=1)
+        
+        # 정규화
+        scaler = MinMaxScaler()
+        df_norm = pd.DataFrame(
+            scaler.fit_transform(df_rate),
+            columns=df_rate.columns,
+            index=df_rate.index
+        )
+        
+        return df_norm
+    
+    def generate_folium_map(self, crime_csv_path: str, pop_path: str, 
+                           geo_json_path: str, save_dir: str,
+                           df_pop_cleaned: pd.DataFrame = None,
+                           crime_type: str = '발생') -> dict:
+        """
+        서울시 범죄율 Folium 지도 생성
+        
+        Args:
+            crime_csv_path: 범죄 데이터 CSV 파일 경로
+            pop_path: 인구 데이터 Excel 파일 경로
+            geo_json_path: 서울시 구별 GeoJSON 파일 경로
+            save_dir: 저장 경로
+            df_pop_cleaned: 정리된 인구 데이터 (선택사항)
+            crime_type: 범죄 유형 ('발생' 또는 '검거'), 기본값: '발생'
+        
+        Returns:
+            생성된 지도 파일 경로와 데이터 요약 정보를 포함한 딕셔너리
+        """
+        try:
+            logger.info("\n🗺️ 서울시 범죄율 Folium 지도 생성 시작")
+            
+            # 1. 범죄율 데이터 계산
+            logger.info("📊 범죄율 데이터 계산 중...")
+            df_norm = self._calculate_crime_rate(
+                crime_csv_path=crime_csv_path,
+                pop_path=pop_path,
+                df_pop_cleaned=df_pop_cleaned,
+                crime_type=crime_type
+            )
+            
+            # '범죄' 컬럼을 사용하여 지도 색상 결정
+            crime_rate_data = df_norm[['범죄']].reset_index()
+            crime_rate_data.columns = ['자치구', '범죄율']
+            logger.info(f"  범죄율 데이터 shape: {crime_rate_data.shape}")
+            logger.info(f"  범죄율 데이터 (상위 5개):\n{crime_rate_data.head(5).to_string()}")
+            
+            # 2. GeoJSON 파일 로드
+            logger.info(f"\n📂 GeoJSON 파일 로드: {geo_json_path}")
+            with open(geo_json_path, 'r', encoding='utf-8') as f:
+                seoul_geo = json.load(f)
+            logger.info(f"  ✅ GeoJSON 로드 완료: {len(seoul_geo.get('features', []))}개 구")
+            
+            # GeoJSON의 모든 자치구 id 추출
+            geo_districts = [feature.get('id') for feature in seoul_geo.get('features', [])]
+            data_districts = crime_rate_data['자치구'].tolist()
+            
+            logger.info(f"  GeoJSON 자치구 수: {len(geo_districts)}")
+            logger.info(f"  GeoJSON 자치구 목록: {sorted(geo_districts)}")
+            logger.info(f"  데이터 자치구 수: {len(data_districts)}")
+            logger.info(f"  데이터 자치구 목록: {sorted(data_districts)}")
+            
+            # 매칭되지 않는 자치구 확인
+            missing_in_data = set(geo_districts) - set(data_districts)
+            missing_in_geo = set(data_districts) - set(geo_districts)
+            
+            if missing_in_data:
+                logger.warning(f"  ⚠️ GeoJSON에는 있지만 데이터에 없는 자치구: {sorted(missing_in_data)}")
+                # 매칭되지 않는 자치구에 대해 최소값(0) 추가
+                min_value = crime_rate_data['범죄율'].min() if len(crime_rate_data) > 0 else 0.0
+                for district in missing_in_data:
+                    crime_rate_data = pd.concat([
+                        crime_rate_data,
+                        pd.DataFrame([{'자치구': district, '범죄율': min_value}])
+                    ], ignore_index=True)
+                logger.info(f"  ✅ 매칭되지 않는 자치구에 최소값({min_value}) 추가 완료")
+            
+            if missing_in_geo:
+                logger.warning(f"  ⚠️ 데이터에는 있지만 GeoJSON에 없는 자치구: {sorted(missing_in_geo)}")
+            
+            # 최종 매칭 확인
+            final_geo_districts = set(geo_districts)
+            final_data_districts = set(crime_rate_data['자치구'].tolist())
+            matched = final_geo_districts & final_data_districts
+            logger.info(f"  ✅ 최종 매칭된 자치구 수: {len(matched)}/{len(geo_districts)}")
+            
+            # 3. Folium 지도 생성 (서울 중심 좌표)
+            logger.info("\n🗺️ Folium 지도 생성 중...")
+            seoul_center = [37.5665, 126.9780]  # 서울시청 좌표
+            m = folium.Map(location=seoul_center, zoom_start=11, tiles='OpenStreetMap')
+            
+            # 4. Choropleth 레이어 추가
+            logger.info("  Choropleth 레이어 추가 중...")
+            
+            # 색상 설정: 빨간색 계열
+            fill_color = "Reds"
+            legend_name = "범죄 발생률 (정규화)"
+            
+            # 원본 데이터를 딕셔너리로 변환 (자치구명 -> 범죄율)
+            # groupby 후 인덱스가 자치구명이므로 reset_index() 후 자치구 컬럼 사용
+            original_data_dict = dict(zip(crime_rate_data['자치구'], crime_rate_data['범죄율']))
+            min_value = crime_rate_data['범죄율'].min() if len(crime_rate_data) > 0 else 0.0
+            
+            logger.info(f"  📊 원본 데이터 자치구 목록: {sorted(original_data_dict.keys())}")
+            logger.info(f"  📊 원본 데이터 자치구 수: {len(original_data_dict)}")
+            
+            # GeoJSON의 모든 feature를 기준으로 새로운 데이터 생성
+            # 이렇게 하면 GeoJSON의 모든 id가 포함되고, 매칭되는 데이터만 사용됩니다
+            matched_data = []
+            unmatched_districts = []
+            
+            for feature in seoul_geo.get('features', []):
+                district_id = feature.get('id')
+                district_name = feature.get('properties', {}).get('name')
+                
+                # id 또는 name으로 매칭 시도
+                matched_value = None
+                if district_id in original_data_dict:
+                    matched_value = original_data_dict[district_id]
+                    logger.debug(f"  ✅ {district_id} 매칭 성공 (id로)")
+                elif district_name in original_data_dict:
+                    matched_value = original_data_dict[district_name]
+                    logger.debug(f"  ✅ {district_id} ({district_name}) 매칭 성공 (name으로)")
+                else:
+                    # 매칭 실패
+                    matched_value = min_value
+                    unmatched_districts.append(f"{district_id} ({district_name})")
+                    logger.warning(f"  ⚠️ {district_id} ({district_name}) 매칭 실패, 최소값({min_value}) 사용")
+                
+                # GeoJSON의 id를 기준으로 데이터 추가 (Folium은 id로 매칭)
+                matched_data.append({
+                    '자치구': district_id,  # GeoJSON의 id 사용
+                    '범죄율': matched_value
+                })
+            
+            # GeoJSON 기준으로 재구성된 데이터로 DataFrame 생성
+            crime_rate_data = pd.DataFrame(matched_data)
+            
+            logger.info(f"  ✅ 최종 데이터 shape: {crime_rate_data.shape}")
+            if unmatched_districts:
+                logger.warning(f"  ⚠️ 매칭 실패한 자치구 ({len(unmatched_districts)}개): {unmatched_districts}")
+            else:
+                logger.info(f"  ✅ 모든 자치구 매칭 성공!")
+            logger.info(f"  ✅ 최종 데이터 샘플:\n{crime_rate_data.head(10).to_string()}")
+            
+            # Folium Choropleth는 데이터의 첫 번째 컬럼과 key_on을 매칭합니다
+            # 데이터가 GeoJSON의 id와 정확히 일치하는지 확인
+            logger.info(f"  🔍 Choropleth 매칭 확인:")
+            logger.info(f"    - 데이터 자치구 샘플: {crime_rate_data['자치구'].head(5).tolist()}")
+            logger.info(f"    - GeoJSON id 샘플: {[f.get('id') for f in seoul_geo.get('features', [])[:5]]}")
+            
+            # 데이터 타입 확인 및 변환
+            crime_rate_data['자치구'] = crime_rate_data['자치구'].astype(str)
+            crime_rate_data['범죄율'] = crime_rate_data['범죄율'].astype(float)
+            
+            # 중복 제거 (혹시 모를 중복 방지)
+            crime_rate_data = crime_rate_data.drop_duplicates(subset=['자치구'], keep='first')
+            
+            logger.info(f"  ✅ 최종 매칭 데이터 shape: {crime_rate_data.shape}")
+            logger.info(f"  ✅ 최종 매칭 데이터:\n{crime_rate_data.to_string()}")
+            
+            folium.Choropleth(
+                geo_data=seoul_geo,
+                name="choropleth",
+                data=crime_rate_data,
+                columns=["자치구", "범죄율"],
+                key_on="feature.id",  # GeoJSON의 id 필드와 매칭
+                fill_color=fill_color,
+                fill_opacity=0.7,
+                line_opacity=0.2,
+                line_color='black',
+                line_weight=1,
+                legend_name=legend_name,
+                highlight=True,
+                smooth_factor=0
+            ).add_to(m)
+            
+            # 5. 레이어 컨트롤 추가
+            folium.LayerControl().add_to(m)
+            
+            # 6. 저장
+            os.makedirs(save_dir, exist_ok=True)
+            filename = f"seoul_crime_map_{crime_type}.html"
+            filepath = os.path.join(save_dir, filename)
+            m.save(filepath)
+            logger.info(f"  ✅ 지도 저장 완료: {filepath}")
+            
+            logger.info("\n✅ Folium 지도 생성 완료!")
+            
+            return {
+                "status": "success",
+                "message": "Folium 지도 생성이 완료되었습니다",
+                "map_file": filepath,
+                "data_summary": {
+                    "total_districts": len(crime_rate_data),
+                    "crime_type": crime_type,
+                    "crime_rate_preview": crime_rate_data.head(10).to_dict(orient='records')
+                }
+            }
+            
+        except Exception as e:
+            logger.error(f"❌ Folium 지도 생성 오류: {str(e)}")
             import traceback
             logger.error(traceback.format_exc())
             raise

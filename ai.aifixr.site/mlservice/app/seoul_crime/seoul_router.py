@@ -204,3 +204,54 @@ async def get_heatmap_info():
             "detail": error_detail
         }
 
+@router.get(
+    "/map",
+    summary="서울시 범죄 발생률 Folium 지도 생성",
+    description="서울시 구별 범죄 발생률을 Folium 지도로 시각화합니다."
+)
+async def generate_folium_map():
+    """
+    서울시 범죄 발생률 Folium 지도 생성
+    
+    - 범죄 발생 데이터를 기반으로 자치구별 범죄율을 계산합니다.
+    - 인구수 대비 범죄율을 정규화합니다.
+    - Folium Choropleth를 사용하여 지도에 색상으로 표현합니다.
+    - 빨간색 계열로 범죄 발생률을 표시합니다.
+    """
+    try:
+        service = get_service()
+        result = service.generate_folium_map()
+        
+        # HTML 파일 경로
+        map_file = result["map_file"]
+        
+        if os.path.exists(map_file):
+            return FileResponse(
+                map_file,
+                media_type="text/html",
+                filename=os.path.basename(map_file)
+            )
+        else:
+            return JSONResponse(
+                status_code=404,
+                content={
+                    "status": "error",
+                    "message": f"지도 파일을 찾을 수 없습니다: {map_file}"
+                }
+            )
+            
+    except Exception as e:
+        import traceback
+        error_detail = traceback.format_exc()
+        logger.error(f"❌ Folium 지도 생성 오류: {str(e)}")
+        logger.error(error_detail)
+        return JSONResponse(
+            status_code=500,
+            content={
+                "status": "error",
+                "message": "Folium 지도 생성 중 오류가 발생했습니다.",
+                "error": str(e),
+                "detail": error_detail
+            }
+        )
+
