@@ -241,6 +241,24 @@ services:
           - ml-service.local
     restart: unless-stopped
 
+  transformer-service:
+    build:
+      context: ./ai.aifixr.site/transformerservice
+      dockerfile: Dockerfile
+    ports:
+      - "9020:9020"
+    container_name: transformer-service
+    env_file:
+      - .env
+    volumes:
+      # 모델 캐시 디렉토리 마운트 (모델 파일 유지)
+      - ./ai.aifixr.site/transformerservice/app/koelectra/koelectra_model:/app/app/koelectra/koelectra_model
+    networks:
+      aifixr-network:
+        aliases:
+          - transformer-service.local
+    restart: unless-stopped
+
 # ========================================
 # Networks
 # ========================================

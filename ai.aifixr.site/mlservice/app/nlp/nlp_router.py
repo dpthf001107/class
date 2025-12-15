@@ -1,7 +1,6 @@
 from fastapi import APIRouter
 from fastapi.responses import FileResponse, JSONResponse
 from app.nlp.emma.emma_wordcloud import EmmaWordCloud
-from app.nlp.samsung.samsung_wordcloud import SamsungWordCloud
 import logging
 import os
 
@@ -19,10 +18,6 @@ router = APIRouter(
 def get_emma_service() -> EmmaWordCloud:
     """EmmaWordCloud 인스턴스 반환"""
     return EmmaWordCloud()
-
-def get_samsung_service() -> SamsungWordCloud:
-    """SamsungWordCloud 인스턴스 반환"""
-    return SamsungWordCloud()
 
 @router.get(
     "/",
@@ -104,65 +99,6 @@ async def generate_emma_wordcloud(
             content={
                 "status": "error",
                 "message": "워드클라우드 생성 중 오류가 발생했습니다.",
-                "error": str(e),
-                "detail": error_detail
-            }
-        )
-
-@router.get(
-    "/samsung/process",
-    summary="삼성 지속가능경영보고서 전처리 및 빈도 분석",
-    description="삼성전자 2018년 지속가능경영보고서를 전처리하고 빈도 분석 결과를 JSON으로 반환합니다."
-)
-async def process_samsung_text():
-    """
-    삼성 지속가능경영보고서 전처리 및 빈도 분석
-    
-    - 삼성전자 2018년 지속가능경영보고서를 분석합니다.
-    - 한국어 형태소 분석을 통해 명사를 추출합니다.
-    - 빈도 분석 결과와 워드클라우드를 생성합니다.
-    - 전처리 결과와 빈도 분포를 JSON으로 반환합니다.
-    
-    Returns:
-        JSON 형태의 전처리 결과 및 빈도 분석 데이터
-    """
-    try:
-        # SamsungWordCloud 인스턴스 생성
-        samsung = get_samsung_service()
-        
-        # 전처리 및 빈도 분석 수행
-        result = samsung.text_process()
-        
-        # FreqDist 객체를 딕셔너리로 변환 (JSON 직렬화 가능하도록)
-        if 'freq_txt' in result and hasattr(result['freq_txt'], 'most_common'):
-            freq_dist = result['freq_txt']
-            # 전체 단어 수 저장
-            total_words = freq_dist.N() if hasattr(freq_dist, 'N') else len(freq_dist)
-            # 상위 100개 빈도만 반환 (너무 크면 JSON 직렬화 문제 발생 가능)
-            freq_dict = dict(freq_dist.most_common(100))
-            result['freq_txt'] = freq_dict
-            result['total_words'] = total_words
-            result['top_count'] = 100  # 반환된 상위 단어 개수
-        
-        return JSONResponse(
-            status_code=200,
-            content={
-                "status": "success",
-                "message": "전처리 및 빈도 분석이 완료되었습니다.",
-                "data": result
-            }
-        )
-            
-    except Exception as e:
-        import traceback
-        error_detail = traceback.format_exc()
-        logger.error(f"❌ 전처리 및 빈도 분석 오류: {str(e)}")
-        logger.error(error_detail)
-        return JSONResponse(
-            status_code=500,
-            content={
-                "status": "error",
-                "message": "전처리 및 빈도 분석 중 오류가 발생했습니다.",
                 "error": str(e),
                 "detail": error_detail
             }

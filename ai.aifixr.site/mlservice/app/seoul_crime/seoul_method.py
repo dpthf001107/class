@@ -571,72 +571,9 @@ class SeoulMethod(object):
             # 4. Choropleth 레이어 추가
             logger.info("  Choropleth 레이어 추가 중...")
             
-            # 색상 설정: 빨간색 계열
-            fill_color = "Reds"
-            legend_name = "범죄 발생률 (정규화)"
-            
-            # 원본 데이터를 딕셔너리로 변환 (자치구명 -> 범죄율)
-            # groupby 후 인덱스가 자치구명이므로 reset_index() 후 자치구 컬럼 사용
-            original_data_dict = dict(zip(crime_rate_data['자치구'], crime_rate_data['범죄율']))
-            min_value = crime_rate_data['범죄율'].min() if len(crime_rate_data) > 0 else 0.0
-            
-            logger.info(f"  📊 원본 데이터 자치구 목록: {sorted(original_data_dict.keys())}")
-            logger.info(f"  📊 원본 데이터 자치구 수: {len(original_data_dict)}")
-            
-            # GeoJSON의 모든 feature를 기준으로 새로운 데이터 생성
-            # 이렇게 하면 GeoJSON의 모든 id가 포함되고, 매칭되는 데이터만 사용됩니다
-            matched_data = []
-            unmatched_districts = []
-            
-            for feature in seoul_geo.get('features', []):
-                district_id = feature.get('id')
-                district_name = feature.get('properties', {}).get('name')
-                
-                # id 또는 name으로 매칭 시도
-                matched_value = None
-                if district_id in original_data_dict:
-                    matched_value = original_data_dict[district_id]
-                    logger.debug(f"  ✅ {district_id} 매칭 성공 (id로)")
-                elif district_name in original_data_dict:
-                    matched_value = original_data_dict[district_name]
-                    logger.debug(f"  ✅ {district_id} ({district_name}) 매칭 성공 (name으로)")
-                else:
-                    # 매칭 실패
-                    matched_value = min_value
-                    unmatched_districts.append(f"{district_id} ({district_name})")
-                    logger.warning(f"  ⚠️ {district_id} ({district_name}) 매칭 실패, 최소값({min_value}) 사용")
-                
-                # GeoJSON의 id를 기준으로 데이터 추가 (Folium은 id로 매칭)
-                matched_data.append({
-                    '자치구': district_id,  # GeoJSON의 id 사용
-                    '범죄율': matched_value
-                })
-            
-            # GeoJSON 기준으로 재구성된 데이터로 DataFrame 생성
-            crime_rate_data = pd.DataFrame(matched_data)
-            
-            logger.info(f"  ✅ 최종 데이터 shape: {crime_rate_data.shape}")
-            if unmatched_districts:
-                logger.warning(f"  ⚠️ 매칭 실패한 자치구 ({len(unmatched_districts)}개): {unmatched_districts}")
-            else:
-                logger.info(f"  ✅ 모든 자치구 매칭 성공!")
-            logger.info(f"  ✅ 최종 데이터 샘플:\n{crime_rate_data.head(10).to_string()}")
-            
-            # Folium Choropleth는 데이터의 첫 번째 컬럼과 key_on을 매칭합니다
-            # 데이터가 GeoJSON의 id와 정확히 일치하는지 확인
-            logger.info(f"  🔍 Choropleth 매칭 확인:")
-            logger.info(f"    - 데이터 자치구 샘플: {crime_rate_data['자치구'].head(5).tolist()}")
-            logger.info(f"    - GeoJSON id 샘플: {[f.get('id') for f in seoul_geo.get('features', [])[:5]]}")
-            
-            # 데이터 타입 확인 및 변환
-            crime_rate_data['자치구'] = crime_rate_data['자치구'].astype(str)
-            crime_rate_data['범죄율'] = crime_rate_data['범죄율'].astype(float)
-            
-            # 중복 제거 (혹시 모를 중복 방지)
-            crime_rate_data = crime_rate_data.drop_duplicates(subset=['자치구'], keep='first')
-            
-            logger.info(f"  ✅ 최종 매칭 데이터 shape: {crime_rate_data.shape}")
-            logger.info(f"  ✅ 최종 매칭 데이터:\n{crime_rate_data.to_string()}")
+            # 색상 설정: 발생은 빨간색, 검거는 파란색
+            fill_color = "Reds" if crime_type == '발생' else "Blues"
+            legend_name = "범죄 발생률 (정규화)" if crime_type == '발생' else "범죄 검거률 (정규화)"
             
             folium.Choropleth(
                 geo_data=seoul_geo,

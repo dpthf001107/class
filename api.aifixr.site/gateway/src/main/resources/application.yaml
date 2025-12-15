@@ -144,6 +144,13 @@ spring:
           filters:
             - RewritePath=/api-docs/ml, /openapi.json
         
+        - id: transformer-api-docs
+          uri: http://transformer-service:9020
+          predicates:
+            - Path=/api-docs/transformer
+          filters:
+            - RewritePath=/api-docs/transformer, /openapi.json
+        
         # ========================================
         # Spring Boot Services
         # ========================================
@@ -267,6 +274,17 @@ spring:
             - name: CircuitBreaker
               args:
                 name: mlCircuitBreaker
+        
+        # Transformer Service (KoELECTRA 감성분석)
+        - id: transformer-service-route
+          uri: http://transformer-service:9020
+          predicates:
+            - Path=/api/transformer/**
+          filters:
+            - RewritePath=/api/transformer/(?<segment>.*), /${segment}
+            - name: CircuitBreaker
+              args:
+                name: transformerCircuitBreaker
 
 # ========================================
 # Resilience4j Circuit Breaker 설정
@@ -322,6 +340,12 @@ resilience4j:
         wait-duration-in-open-state: 10s
         permitted-number-of-calls-in-half-open-state: 3
         automatic-transition-from-open-to-half-open-enabled: true
+      transformerCircuitBreaker:
+        sliding-window-size: 10
+        failure-rate-threshold: 50
+        wait-duration-in-open-state: 10s
+        permitted-number-of-calls-in-half-open-state: 3
+        automatic-transition-from-open-to-half-open-enabled: true
       titanicCircuitBreaker:
         sliding-window-size: 10
         failure-rate-threshold: 50
@@ -344,6 +368,8 @@ resilience4j:
     instances:
       mlCircuitBreaker:
         timeout-duration: 180s
+      transformerCircuitBreaker:
+        timeout-duration: 180s  # 모델 로딩 및 추론 시간 고려
       oauthCircuitBreaker:
         timeout-duration: 30s
 
@@ -394,6 +420,8 @@ springdoc:
         name: Chatbot Service (FastAPI)
       - url: /api-docs/ml
         name: ML Service (FastAPI)
+      - url: /api-docs/transformer
+        name: Transformer Service (FastAPI)
       - url: /api-docs/oauth
         name: OAuth Service (Google Login)
   show-actuator: false

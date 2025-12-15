@@ -349,38 +349,5 @@ class SeoulService:
             logger.error(f"❌ 검거 히트맵 생성 오류: {str(e)}")
             logger.error(error_detail)
             raise
-    
-    def generate_folium_map(self):
-        """
-        서울시 범죄 발생률 Folium 지도 생성
-        
-        Returns:
-            생성된 지도 파일 경로와 데이터 요약 정보
-        """
-        try:
-            # 파일 경로 설정
-            crime_csv_path = os.path.join(self.dataset.sname, 'crime_with_gu.csv')
-            pop_path = os.path.join(self.data_path, 'pop.xls')
-            geo_json_path = os.path.join(self.data_path, 'kr-state.json')
-            save_dir = self.dataset.sname
-            
-            # SeoulMethod의 generate_folium_map 메서드 호출 (발생 데이터만)
-            result = self.method.generate_folium_map(
-                crime_csv_path=crime_csv_path,
-                pop_path=pop_path,
-                geo_json_path=geo_json_path,
-                save_dir=save_dir,
-                df_pop_cleaned=self.df_pop_cleaned,
-                crime_type='발생'
-            )
-            
-            return result
-            
-        except Exception as e:
-            import traceback
-            error_detail = traceback.format_exc()
-            logger.error(f"❌ Folium 지도 생성 오류: {str(e)}")
-            logger.error(error_detail)
-            raise
 
         
