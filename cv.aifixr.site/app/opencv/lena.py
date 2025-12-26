@@ -51,9 +51,12 @@ class LenaModel:
             gray_face_img = self.execute(gray_face_img, (x, y, x + w, y + h), 10)
         
         # 3개의 결과물 저장
-        cv2.imwrite("lena-original.png", original)
-        cv2.imwrite("lena-gray-face.png", gray_face_img)
-        cv2.imwrite("lena-unchanged.png", unchanged)
+        script_dir = os.path.dirname(os.path.abspath(__file__))
+        output_dir = os.path.join(script_dir, '../data/opencv')
+        os.makedirs(output_dir, exist_ok=True)
+        cv2.imwrite(os.path.join(output_dir, "lena-original.png"), original)
+        cv2.imwrite(os.path.join(output_dir, "lena-gray-face.png"), gray_face_img)
+        cv2.imwrite(os.path.join(output_dir, "lena-unchanged.png"), unchanged)
         
         # 3개의 창에 표시
         cv2.imshow("Original", original)

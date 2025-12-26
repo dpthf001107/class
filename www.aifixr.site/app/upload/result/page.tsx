@@ -1,0 +1,330 @@
+'use client';
+
+import { useState, useEffect } from 'react';
+import { useSearchParams, useRouter } from 'next/navigation';
+import Header from '@/components/Header';
+import MainNavigation from '@/components/MainNavigation';
+import LoginModal from '@/components/LoginModal';
+import { createMainHandlers } from '@/services/mainservice';
+import { Button } from '@/components/ui/button';
+import { ArrowLeft, Download, RefreshCw } from 'lucide-react';
+
+export default function UploadResultPage() {
+  const searchParams = useSearchParams();
+  const router = useRouter();
+  const [activeMainTab, setActiveMainTab] = useState('upload');
+  const [isLoginModalOpen, setIsLoginModalOpen] = useState(false);
+  const [imageUrl, setImageUrl] = useState<string | null>(null);
+  const [originalImageUrl, setOriginalImageUrl] = useState<string | null>(null);
+  const [generalDetectedUrl, setGeneralDetectedUrl] = useState<string | null>(null);
+  const [segmentedUrl, setSegmentedUrl] = useState<string | null>(null);
+  const [poseUrl, setPoseUrl] = useState<string | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+
+  const { handleLoginClick, handleLoginRequired, handleLogin } =  
+    createMainHandlers(setIsLoginModalOpen);
+
+  const fileName = searchParams.get('file');
+  // 얼굴 디텍션 결과 파일명 (yolov8n-face.pt 사용)
+  const detectedFileName = fileName ? fileName.replace(/\.(jpg|jpeg|png)$/i, '_face_detected.$1') : null;
+  // 일반 객체 디텍션 결과 파일명
+  const generalDetectedFileName = fileName ? fileName.replace(/\.(jpg|jpeg|png)$/i, '_detected.$1') : null;
+  // 세그멘테이션 결과 파일명
+  const segmentedFileName = fileName ? fileName.replace(/\.(jpg|jpeg|png)$/i, '_segmented.$1') : null;
+  // 포즈 에스티메이션 결과 파일명
+  const poseFileName = fileName ? fileName.replace(/\.(jpg|jpeg|png)$/i, '_pose.$1') : null;
+
+  useEffect(() => {
+    if (!fileName) {
+      setError('파일명이 제공되지 않았습니다.');
+      setLoading(false);
+      return;
+    }
+
+    // 이미지 로드 시도
+    const loadImages = async () => {
+      try {
+        // API를 통해 이미지 로드
+        const detectedUrl = `/api/image?path=${encodeURIComponent(`../cv.aifixr.site/app/data/yolo/${detectedFileName}`)}`;
+        const originalUrl = `/api/image?path=${encodeURIComponent(`../cv.aifixr.site/app/data/yolo/${fileName}`)}`;
+        const generalDetectedUrl = `/api/image?path=${encodeURIComponent(`../cv.aifixr.site/app/data/yolo/${generalDetectedFileName}`)}`;
+        const segmentedUrl = `/api/image?path=${encodeURIComponent(`../cv.aifixr.site/app/data/yolo/${segmentedFileName}`)}`;
+        const poseUrl = `/api/image?path=${encodeURIComponent(`../cv.aifixr.site/app/data/yolo/${poseFileName}`)}`;
+        
+        // 이미지가 실제로 존재하는지 확인
+        const checkImage = async (url: string) => {
+          try {
+            const response = await fetch(url, { cache: 'no-store' });
+            return response.ok ? url : null;
+          } catch {
+            return null;
+          }
+        };
+        
+        // 디텍션된 이미지 확인 (최대 10초 대기)
+        let detectedUrlValid = null;
+        for (let i = 0; i < 20; i++) {
+          detectedUrlValid = await checkImage(detectedUrl);
+          if (detectedUrlValid) break;
+          await new Promise(resolve => setTimeout(resolve, 500));
+        }
+        
+        const originalUrlValid = await checkImage(originalUrl);
+        const generalDetectedUrlValid = await checkImage(generalDetectedUrl);
+        const segmentedUrlValid = await checkImage(segmentedUrl);
+        const poseUrlValid = await checkImage(poseUrl);
+        
+        if (detectedUrlValid) {
+          setImageUrl(detectedUrlValid);
+        } else {
+          setError('디텍션 결과 이미지를 찾을 수 없습니다. 잠시 후 다시 시도해주세요.');
+        }
+        
+        if (originalUrlValid) {
+          setOriginalImageUrl(originalUrlValid);
+        }
+        
+        if (generalDetectedUrlValid) {
+          setGeneralDetectedUrl(generalDetectedUrlValid);
+        }
+        
+        if (segmentedUrlValid) {
+          setSegmentedUrl(segmentedUrlValid);
+        }
+        
+        if (poseUrlValid) {
+          setPoseUrl(poseUrlValid);
+        }
+        
+        setLoading(false);
+      } catch (err) {
+        setError('이미지를 불러올 수 없습니다.');
+        setLoading(false);
+      }
+    };
+
+    loadImages();
+  }, [fileName, detectedFileName, generalDetectedFileName, segmentedFileName, poseFileName]);
+
+  return (
+    <div className="min-h-screen bg-white">
+      {/* Header */}
+      <Header 
+        onLoginClick={handleLoginClick}
+      />
+
+      {/* Main Navigation */}
+      <MainNavigation 
+        activeTab={activeMainTab}
+        setActiveTab={setActiveMainTab}
+        onLoginRequired={handleLoginRequired}
+      />
+
+      {/* Content */}
+      <div className="pt-[144px] pb-16">
+        <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8">
+          {/* 헤더 */}
+          <div className="mb-8">
+            <Button
+              variant="ghost"
+              onClick={() => router.push('/upload')}
+              className="mb-4 text-gray-600 hover:text-gray-900"
+            >
+              <ArrowLeft className="w-4 h-4 mr-2" />
+              업로드 페이지로 돌아가기
+            </Button>
+            <h1 className="text-3xl font-bold text-[#1a2332] mb-2">
+              디텍션 결과
+            </h1>
+            <p className="text-gray-600">
+              얼굴 디텍션, 객체 디텍션, 세그멘테이션, 포즈 에스티메이션이 완료되었습니다.
+            </p>
+          </div>
+
+          {/* 결과 영역 */}
+          {loading ? (
+            <div className="bg-white rounded-xl shadow-lg p-16 text-center">
+              <RefreshCw className="w-12 h-12 animate-spin mx-auto mb-4 text-[#0D4ABB]" />
+              <p className="text-gray-600">이미지를 불러오는 중...</p>
+            </div>
+          ) : error ? (
+            <div className="bg-white rounded-xl shadow-lg p-8">
+              <div className="text-center text-red-600">
+                <p className="text-lg font-medium">{error}</p>
+              </div>
+            </div>
+          ) : (
+            <div className="grid md:grid-cols-2 gap-6">
+              {/* 원본 이미지 */}
+              <div className="bg-white rounded-xl shadow-lg p-6">
+                <h2 className="text-xl font-bold text-[#1a2332] mb-4">원본 이미지</h2>
+                {originalImageUrl && (
+                  <div className="relative">
+                    <img
+                      src={originalImageUrl}
+                      alt="원본 이미지"
+                      className="w-full rounded-lg object-contain max-h-[600px] mx-auto"
+                      onError={() => setError('원본 이미지를 불러올 수 없습니다.')}
+                    />
+                  </div>
+                )}
+                {fileName && (
+                  <p className="text-sm text-gray-500 mt-2 text-center">{fileName}</p>
+                )}
+              </div>
+
+              {/* 얼굴 디텍션 결과 이미지 */}
+              <div className="bg-white rounded-xl shadow-lg p-6">
+                <h2 className="text-xl font-bold text-[#1a2332] mb-4">얼굴 디텍션 결과</h2>
+                {imageUrl && (
+                  <div className="relative">
+                    <img
+                      src={imageUrl}
+                      alt="얼굴 디텍션 결과"
+                      className="w-full rounded-lg object-contain max-h-[600px] mx-auto"
+                      onError={() => setError('얼굴 디텍션 결과 이미지를 불러올 수 없습니다.')}
+                    />
+                  </div>
+                )}
+                {detectedFileName && (
+                  <div className="mt-4 flex items-center justify-center gap-3">
+                    <p className="text-sm text-gray-500">{detectedFileName}</p>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => {
+                        if (imageUrl) {
+                          const link = document.createElement('a');
+                          link.href = imageUrl;
+                          link.download = detectedFileName || 'face_detected.jpg';
+                          link.click();
+                        }
+                      }}
+                    >
+                      <Download className="w-4 h-4 mr-2" />
+                      다운로드
+                    </Button>
+                  </div>
+                )}
+              </div>
+
+              {/* 일반 객체 디텍션 결과 이미지 */}
+              {generalDetectedUrl && (
+                <div className="bg-white rounded-xl shadow-lg p-6">
+                  <h2 className="text-xl font-bold text-[#1a2332] mb-4">객체 디텍션 결과</h2>
+                  <div className="relative">
+                    <img
+                      src={generalDetectedUrl}
+                      alt="객체 디텍션 결과"
+                      className="w-full rounded-lg object-contain max-h-[600px] mx-auto"
+                      onError={() => setError('객체 디텍션 결과 이미지를 불러올 수 없습니다.')}
+                    />
+                  </div>
+                  {generalDetectedFileName && (
+                    <div className="mt-4 flex items-center justify-center gap-3">
+                      <p className="text-sm text-gray-500">{generalDetectedFileName}</p>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => {
+                          if (generalDetectedUrl) {
+                            const link = document.createElement('a');
+                            link.href = generalDetectedUrl;
+                            link.download = generalDetectedFileName || 'detected.jpg';
+                            link.click();
+                          }
+                        }}
+                      >
+                        <Download className="w-4 h-4 mr-2" />
+                        다운로드
+                      </Button>
+                    </div>
+                  )}
+                </div>
+              )}
+
+              {/* 세그멘테이션 결과 이미지 */}
+              {segmentedUrl && (
+                <div className="bg-white rounded-xl shadow-lg p-6">
+                  <h2 className="text-xl font-bold text-[#1a2332] mb-4">세그멘테이션 결과</h2>
+                  <div className="relative">
+                    <img
+                      src={segmentedUrl}
+                      alt="세그멘테이션 결과"
+                      className="w-full rounded-lg object-contain max-h-[600px] mx-auto"
+                      onError={() => setError('세그멘테이션 결과 이미지를 불러올 수 없습니다.')}
+                    />
+                  </div>
+                  {segmentedFileName && (
+                    <div className="mt-4 flex items-center justify-center gap-3">
+                      <p className="text-sm text-gray-500">{segmentedFileName}</p>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => {
+                          if (segmentedUrl) {
+                            const link = document.createElement('a');
+                            link.href = segmentedUrl;
+                            link.download = segmentedFileName || 'segmented.jpg';
+                            link.click();
+                          }
+                        }}
+                      >
+                        <Download className="w-4 h-4 mr-2" />
+                        다운로드
+                      </Button>
+                    </div>
+                  )}
+                </div>
+              )}
+
+              {/* 포즈 에스티메이션 결과 이미지 */}
+              {poseUrl && (
+                <div className="bg-white rounded-xl shadow-lg p-6">
+                  <h2 className="text-xl font-bold text-[#1a2332] mb-4">포즈 에스티메이션 결과</h2>
+                  <div className="relative">
+                    <img
+                      src={poseUrl}
+                      alt="포즈 에스티메이션 결과"
+                      className="w-full rounded-lg object-contain max-h-[600px] mx-auto"
+                      onError={() => setError('포즈 에스티메이션 결과 이미지를 불러올 수 없습니다.')}
+                    />
+                  </div>
+                  {poseFileName && (
+                    <div className="mt-4 flex items-center justify-center gap-3">
+                      <p className="text-sm text-gray-500">{poseFileName}</p>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => {
+                          if (poseUrl) {
+                            const link = document.createElement('a');
+                            link.href = poseUrl;
+                            link.download = poseFileName || 'pose.jpg';
+                            link.click();
+                          }
+                        }}
+                      >
+                        <Download className="w-4 h-4 mr-2" />
+                        다운로드
+                      </Button>
+                    </div>
+                  )}
+                </div>
+              )}
+            </div>
+          )}
+        </div>
+      </div>
+
+      {/* Login Modal */}
+      <LoginModal 
+        isOpen={isLoginModalOpen}
+        onClose={() => setIsLoginModalOpen(false)}
+        onLogin={handleLogin}
+      />
+    </div>
+  );
+}
+

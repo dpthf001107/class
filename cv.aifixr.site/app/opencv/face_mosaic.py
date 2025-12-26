@@ -1,4 +1,5 @@
 import cv2
+import os
 
 class FaceDetect:
     #다이나믹메소드
@@ -17,7 +18,9 @@ class FaceDetect:
             print("얼굴인식 인덱스: ", idx)
             print("얼굴인식 좌표: ", x, y, w, h)
             img = self.mosaic(img, (x, y, x + w, y + h), 10)
-        cv2.imwrite("girl-face.png", img)
+        script_dir = os.path.dirname(os.path.abspath(__file__))
+        output_path = os.path.join(script_dir, '../data/opencv/girl-face.png')
+        cv2.imwrite(output_path, img)
         cv2.imshow("girl-face.png", img)
         cv2.waitKey(0)
         cv2.destroyAllWindows()

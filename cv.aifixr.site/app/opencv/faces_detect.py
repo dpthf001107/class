@@ -1,4 +1,5 @@
 import cv2
+import os
 
 class FaceDetect:
     def __init__(self):
@@ -16,7 +17,9 @@ class FaceDetect:
             print("얼굴인식 인덱스: ", idx)
             print("얼굴인식 좌표: ", x, y, w, h)
             cv2.rectangle(img, (x, y), (x + w, y + h), (0, 0, 255), 2)
-        cv2.imwrite("twins-face.png", img)
+        script_dir = os.path.dirname(os.path.abspath(__file__))
+        output_path = os.path.join(script_dir, '../data/opencv/twins-face.png')
+        cv2.imwrite(output_path, img)
         cv2.imshow("twins-face.png", img)
         cv2.waitKey(0)
         cv2.destroyAllWindows()

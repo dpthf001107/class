@@ -16,7 +16,7 @@ image_path = os.path.join(script_dir, '../data/opencv/family.jpg')
 
 # YOLO 모델 로드
 try:
-    model_path = os.path.join(script_dir, 'yolo11n.pt')
+    model_path = os.path.join(script_dir, '../data/yolo/yolo11n.pt')
     model = YOLO(model_path)
     print(f"YOLO11 모델 로드 성공!")
     print(f"PyTorch 버전: {torch.__version__}")
@@ -40,7 +40,7 @@ try:
         result.show()  # 이미지 창에 표시
         
         # 결과 이미지 저장
-        output_path = os.path.join(script_dir, 'yolo_result.jpg')
+        output_path = os.path.join(script_dir, '../data/yolo/yolo_result.jpg')
         result.save(filename=output_path)
         print(f"결과 이미지 저장: {output_path}")
         

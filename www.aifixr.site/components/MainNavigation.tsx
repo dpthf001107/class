@@ -1,6 +1,6 @@
 'use client';
 
-import { Lock, Sparkles } from 'lucide-react';
+import { Lock, Sparkles, Upload } from 'lucide-react';
 import { useState } from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
@@ -88,6 +88,15 @@ export default function MainNavigation({ activeTab, setActiveTab, onLoginRequire
               </Link>
             );
           })}
+            
+            {/* 사진 업로드 버튼 */}
+            <Link
+              href="/upload"
+              className="relative px-6 py-2.5 rounded-xl transition-all duration-300 flex items-center gap-3 whitespace-nowrap bg-gradient-to-r from-[#E91E8C] to-[#8B5CF6] text-white hover:shadow-lg hover:scale-105"
+            >
+              <Upload className="w-5 h-5" />
+              <span className="font-medium">사진 업로드</span>
+            </Link>
             
             {/* Virtual Human AI Button - Right Side */}
             <button
