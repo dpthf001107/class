@@ -37,3 +37,14 @@ Thumbs.db
 *.log
 logs/
 
+# Python cache
+__pycache__/
+*.pyc
+
+# HuggingFace / Diffusers cache
+.hf_cache/
+**/.hf_cache/
+
+# Diffusion outputs
+outputs/
+**/outputs/

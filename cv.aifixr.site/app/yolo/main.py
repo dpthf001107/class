@@ -19,7 +19,6 @@ sys.path.insert(0, str(current_dir))
 from yolo_face_detection import detect_faces_yolo
 from yolo_general_detection import detect_objects_yolo
 from yolo_segment import segment_objects_yolo
-from yolo_pose import estimate_pose_yolo
 
 app = FastAPI(title="YOLO Face Detection API")
 
@@ -115,25 +114,13 @@ async def upload_file(file: UploadFile = File(...)):
             print(f"{'='*60}\n")
         
         # 3. YOLOv8 Segmentation 실행 (객체 분할)
-        # 얼굴 디텍션 결과에서 얼굴 바운딩 박스 추출
-        face_bbox_for_seg = None
-        if face_detection_result and face_detection_result.get("success") and face_detection_result.get("detections"):
-            # 첫 번째 얼굴의 바운딩 박스 사용
-            first_face = face_detection_result["detections"][0]
-            if "bbox" in first_face:
-                face_bbox_for_seg = first_face["bbox"]
-                print(f"[FastAPI] 얼굴 바운딩 박스 추출: {face_bbox_for_seg}")
-        
         segmentation_result = None
         segmented_file_path = None
         try:
             print(f"\n{'='*60}")
             print(f"[FastAPI] 세그멘테이션 시작...")
             print(f"[FastAPI] 이미지 경로: {file_path}")
-            segmentation_result = segment_objects_yolo(
-                str(file_path),
-                face_bbox=face_bbox_for_seg  # 얼굴 영역만 세그멘테이션
-            )
+            segmentation_result = segment_objects_yolo(str(file_path))
             segmented_file_path = data_dir / f"{file_stem}_segmented.jpg"
             print(f"[FastAPI] 세그멘테이션 완료")
             print(f"[FastAPI] 결과 파일 경로: {segmented_file_path}")
@@ -142,26 +129,6 @@ async def upload_file(file: UploadFile = File(...)):
         except Exception as e:
             print(f"\n{'='*60}")
             print(f"[FastAPI] 세그멘테이션 오류: {e}")
-            import traceback
-            traceback.print_exc()
-            print(f"{'='*60}\n")
-        
-        # 4. YOLOv8 Pose Estimation 실행 (포즈 추정 및 스켈레톤)
-        pose_result = None
-        pose_file_path = None
-        try:
-            print(f"\n{'='*60}")
-            print(f"[FastAPI] 포즈 에스티메이션 시작...")
-            print(f"[FastAPI] 이미지 경로: {file_path}")
-            pose_result = estimate_pose_yolo(str(file_path))
-            pose_file_path = data_dir / f"{file_stem}_pose.jpg"
-            print(f"[FastAPI] 포즈 에스티메이션 완료")
-            print(f"[FastAPI] 결과 파일 경로: {pose_file_path}")
-            print(f"[FastAPI] 결과 파일 존재 여부: {pose_file_path.exists() if pose_file_path else False}")
-            print(f"{'='*60}\n")
-        except Exception as e:
-            print(f"\n{'='*60}")
-            print(f"[FastAPI] 포즈 에스티메이션 오류: {e}")
             import traceback
             traceback.print_exc()
             print(f"{'='*60}\n")
@@ -191,15 +158,9 @@ async def upload_file(file: UploadFile = File(...)):
                 "totalObjects": segmentation_result.get("total_objects", 0) if segmentation_result else 0,
                 "resultPath": str(segmented_file_path) if segmented_file_path and segmented_file_path.exists() else None,
             },
-            "poseEstimation": {
-                "completed": pose_result.get("success", False) if pose_result else False,
-                "totalPoses": pose_result.get("total_objects", 0) if pose_result else 0,
-                "resultPath": str(pose_file_path) if pose_file_path and pose_file_path.exists() else None,
-            },
             "faceDetectedFileName": f"{file_stem}_face_detected.jpg" if face_detected_file_path and face_detected_file_path.exists() else None,
             "detectedFileName": f"{file_stem}_detected.jpg" if general_detected_file_path and general_detected_file_path.exists() else None,
             "segmentedFileName": f"{file_stem}_segmented.jpg" if segmented_file_path and segmented_file_path.exists() else None,
-            "poseFileName": f"{file_stem}_pose.jpg" if pose_file_path and pose_file_path.exists() else None,
         })
     
     except HTTPException:

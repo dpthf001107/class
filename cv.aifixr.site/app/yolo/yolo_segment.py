@@ -15,8 +15,7 @@ def segment_objects_yolo(
     save_result: bool = True,
     conf_threshold: float = 0.25,
     iou_threshold: float = 0.45,
-    imgsz: int = 640,  # 세그멘테이션은 640이 기본 (1280은 너무 느림)
-    face_bbox: tuple = None  # 얼굴 바운딩 박스 (x1, y1, x2, y2) - 얼굴만 세그멘테이션할 때 사용
+    imgsz: int = 640  # 세그멘테이션은 640이 기본 (1280은 너무 느림)
 ) -> dict:
     """
     YOLO Segmentation 모델로 객체 분할
@@ -124,54 +123,22 @@ def segment_objects_yolo(
             np.random.seed(42)  # 일관된 색상을 위해 시드 고정
             colors = np.random.randint(0, 255, size=(len(segmentation_results), 3), dtype=np.uint8)
             
-            # 얼굴 영역만 추출할지 결정
-            face_mask = None
-            if face_bbox is not None:
-                # 얼굴 바운딩 박스로 마스크 생성
-                fx1, fy1, fx2, fy2 = face_bbox
-                face_mask = np.zeros((img.shape[0], img.shape[1]), dtype=np.uint8)
-                face_mask[fy1:fy2, fx1:fx2] = 255
-                print(f"[YOLOv8 Seg] 얼굴 영역만 세그멘테이션: ({fx1}, {fy1}, {fx2}, {fy2})")
-            
             # 각 객체에 대해 마스크와 바운딩 박스 그리기
             for idx, seg in enumerate(segmentation_results):
-                # 얼굴 영역만 세그멘테이션하는 경우, person 클래스만 표시
-                if face_mask is not None and seg['class'] != 'person':
-                    # 얼굴 바운딩 박스가 제공된 경우, person이 아닌 클래스는 제외
-                    continue
-                
                 # 마스크 적용
                 mask = seg['mask']
                 mask_bool = mask > 0.5
-                
-                # 얼굴 영역만 추출 (face_bbox가 제공된 경우)
-                if face_mask is not None and seg['class'] == 'person':
-                    # person 클래스인 경우 얼굴 영역과 교집합만 사용
-                    face_mask_bool = face_mask > 0
-                    mask_bool = mask_bool & face_mask_bool
-                    # 얼굴 영역만 표시하도록 바운딩 박스도 조정
-                    x1, y1, x2, y2 = seg['bbox']
-                    # 얼굴 바운딩 박스와 교집합 계산
-                    fx1, fy1, fx2, fy2 = face_bbox
-                    x1 = max(x1, fx1)
-                    y1 = max(y1, fy1)
-                    x2 = min(x2, fx2)
-                    y2 = min(y2, fy2)
-                    seg['bbox'] = (x1, y1, x2, y2)
-                else:
-                    x1, y1, x2, y2 = seg['bbox']
                 
                 # 색상 오버레이 (반투명)
                 color = colors[idx].tolist()
                 overlay[mask_bool] = color
                 
                 # 바운딩 박스
+                x1, y1, x2, y2 = seg['bbox']
                 cv2.rectangle(output, (x1, y1), (x2, y2), color, 2)
                 
                 # 라벨 (클래스명 + confidence)
                 label = f"{seg['class']} {seg['confidence']:.2%}"
-                if face_mask is not None and seg['class'] == 'person':
-                    label = f"face {seg['confidence']:.2%}"  # 얼굴만 표시하는 경우 라벨 변경
                 label_size, _ = cv2.getTextSize(label, cv2.FONT_HERSHEY_SIMPLEX, 0.6, 2)
                 cv2.rectangle(output, (x1, y1 - label_size[1] - 10), 
                             (x1 + label_size[0], y1), color, -1)

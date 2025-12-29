@@ -18,7 +18,6 @@ export default function UploadResultPage() {
   const [originalImageUrl, setOriginalImageUrl] = useState<string | null>(null);
   const [generalDetectedUrl, setGeneralDetectedUrl] = useState<string | null>(null);
   const [segmentedUrl, setSegmentedUrl] = useState<string | null>(null);
-  const [poseUrl, setPoseUrl] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
@@ -32,8 +31,6 @@ export default function UploadResultPage() {
   const generalDetectedFileName = fileName ? fileName.replace(/\.(jpg|jpeg|png)$/i, '_detected.$1') : null;
   // 세그멘테이션 결과 파일명
   const segmentedFileName = fileName ? fileName.replace(/\.(jpg|jpeg|png)$/i, '_segmented.$1') : null;
-  // 포즈 에스티메이션 결과 파일명
-  const poseFileName = fileName ? fileName.replace(/\.(jpg|jpeg|png)$/i, '_pose.$1') : null;
 
   useEffect(() => {
     if (!fileName) {
@@ -50,7 +47,6 @@ export default function UploadResultPage() {
         const originalUrl = `/api/image?path=${encodeURIComponent(`../cv.aifixr.site/app/data/yolo/${fileName}`)}`;
         const generalDetectedUrl = `/api/image?path=${encodeURIComponent(`../cv.aifixr.site/app/data/yolo/${generalDetectedFileName}`)}`;
         const segmentedUrl = `/api/image?path=${encodeURIComponent(`../cv.aifixr.site/app/data/yolo/${segmentedFileName}`)}`;
-        const poseUrl = `/api/image?path=${encodeURIComponent(`../cv.aifixr.site/app/data/yolo/${poseFileName}`)}`;
         
         // 이미지가 실제로 존재하는지 확인
         const checkImage = async (url: string) => {
@@ -73,7 +69,6 @@ export default function UploadResultPage() {
         const originalUrlValid = await checkImage(originalUrl);
         const generalDetectedUrlValid = await checkImage(generalDetectedUrl);
         const segmentedUrlValid = await checkImage(segmentedUrl);
-        const poseUrlValid = await checkImage(poseUrl);
         
         if (detectedUrlValid) {
           setImageUrl(detectedUrlValid);
@@ -93,10 +88,6 @@ export default function UploadResultPage() {
           setSegmentedUrl(segmentedUrlValid);
         }
         
-        if (poseUrlValid) {
-          setPoseUrl(poseUrlValid);
-        }
-        
         setLoading(false);
       } catch (err) {
         setError('이미지를 불러올 수 없습니다.');
@@ -105,7 +96,7 @@ export default function UploadResultPage() {
     };
 
     loadImages();
-  }, [fileName, detectedFileName, generalDetectedFileName, segmentedFileName, poseFileName]);
+  }, [fileName, detectedFileName, generalDetectedFileName, segmentedFileName]);
 
   return (
     <div className="min-h-screen bg-white">
@@ -138,7 +129,7 @@ export default function UploadResultPage() {
               디텍션 결과
             </h1>
             <p className="text-gray-600">
-              얼굴 디텍션, 객체 디텍션, 세그멘테이션, 포즈 에스티메이션이 완료되었습니다.
+              얼굴 디텍션, 객체 디텍션, 세그멘테이션이 완료되었습니다.
             </p>
           </div>
 
@@ -267,41 +258,6 @@ export default function UploadResultPage() {
                             const link = document.createElement('a');
                             link.href = segmentedUrl;
                             link.download = segmentedFileName || 'segmented.jpg';
-                            link.click();
-                          }
-                        }}
-                      >
-                        <Download className="w-4 h-4 mr-2" />
-                        다운로드
-                      </Button>
-                    </div>
-                  )}
-                </div>
-              )}
-
-              {/* 포즈 에스티메이션 결과 이미지 */}
-              {poseUrl && (
-                <div className="bg-white rounded-xl shadow-lg p-6">
-                  <h2 className="text-xl font-bold text-[#1a2332] mb-4">포즈 에스티메이션 결과</h2>
-                  <div className="relative">
-                    <img
-                      src={poseUrl}
-                      alt="포즈 에스티메이션 결과"
-                      className="w-full rounded-lg object-contain max-h-[600px] mx-auto"
-                      onError={() => setError('포즈 에스티메이션 결과 이미지를 불러올 수 없습니다.')}
-                    />
-                  </div>
-                  {poseFileName && (
-                    <div className="mt-4 flex items-center justify-center gap-3">
-                      <p className="text-sm text-gray-500">{poseFileName}</p>
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        onClick={() => {
-                          if (poseUrl) {
-                            const link = document.createElement('a');
-                            link.href = poseUrl;
-                            link.download = poseFileName || 'pose.jpg';
                             link.click();
                           }
                         }}
