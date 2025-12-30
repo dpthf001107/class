@@ -13,7 +13,7 @@ spring:
   datasource:
     # Neon PostgreSQL 연결 URL
     # 형식: jdbc:postgresql://[HOST]/[DATABASE]?sslmode=require
-    url: jdbc:postgresql://${NEON_DB_HOST:ep-withered-pond-a11avi67.ap-southeast-1.aws.neon.tech}/${NEON_DB_NAME:aifixrdb}?sslmode=require
+    url: jdbc:postgresql://${NEON_DB_HOST:ep-withered-pond-a11avi67.ap-southeast-1.aws.neon.tech}/${NEON_DB_NAME:elianayesoldb}?sslmode=require
     
     # Neon 사용자 인증 정보
     username: ${NEON_DB_USER:neondb_owner}

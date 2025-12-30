@@ -4,17 +4,17 @@ services:
   # ========================================
   db:
     image: postgres:17-alpine
-    container_name: aifixr
+    container_name: elianayesol-db
     environment:
-      - POSTGRES_DB=aifixrdb
-      - POSTGRES_USER=aifixr
-      - POSTGRES_PASSWORD=Aifixr0930!
+      - POSTGRES_DB=elianayesoldb
+      - POSTGRES_USER=elianayesol
+      - POSTGRES_PASSWORD=Elianayesol0930!
     ports:
       - "5432:5432"
     volumes:
       - postgres-data:/var/lib/postgresql/data
     networks:
-      - aifixr-network
+      - elianayesol-network
     restart: unless-stopped
 
   redis:
@@ -26,7 +26,7 @@ services:
     volumes:
       - redis-data:/data
     networks:
-      aifixr-network:
+      elianayesol-network:
         aliases:
           - redis.local
     restart: unless-stopped
@@ -38,193 +38,206 @@ services:
       start_period: 10s
 
   # ========================================
-  # Spring Cloud Gateway
+  # 통합 Spring Boot API 서비스
+  # 통합된 서비스: Gateway, Common, User, Environment, Social, Governance, OAuth
   # ========================================
-  gateway:
+  api-service:
     build:
-      context: ./api.aifixr.site
-      dockerfile: ./gateway/Dockerfile
-    container_name: gateway
+      context: ./api.elianayesol.com
+      dockerfile: Dockerfile
+    container_name: api-service
     ports:
       - "8080:8080"
-    env_file:
-      - .env
-    environment:
-      - REDIS_HOST=${UPSTASH_REDIS_HOST}
-      - REDIS_PORT=${UPSTASH_REDIS_PORT:-6379}
-      - REDIS_PASSWORD=${UPSTASH_REDIS_PASSWORD}
-      - REDIS_SSL_ENABLED=true
-    networks:
-      aifixr-network:
-        aliases:
-          - gateway.local
-    restart: unless-stopped
-
-  # ========================================
-  # Spring Services
-  # ========================================
-  common-service:
-    build:
-      context: .
-      dockerfile: ./core.aifixr.site/common/Dockerfile
-    container_name: common
-    ports:
-      - "8101:8080"
-    depends_on:
-      - redis
-    env_file:
-      - .env
-    environment:
-      - REDIS_HOST=redis
-      - REDIS_PORT=6379
-      - REDIS_PASSWORD=${REDIS_PASSWORD:-Redis0930!}
-    networks:
-      aifixr-network:
-        aliases:
-          - common.local
-    restart: unless-stopped
-
-  environment-service:
-    build:
-      context: .
-      dockerfile: ./core.aifixr.site/environment/Dockerfile
-    container_name: environment
-    ports:
-      - "8105:8080"
-    depends_on:
-      - redis
-    env_file:
-      - .env
-    environment:
-      - REDIS_HOST=redis
-      - REDIS_PORT=6379
-      - REDIS_PASSWORD=${REDIS_PASSWORD:-Redis0930!}
-    networks:
-      aifixr-network:
-        aliases:
-          - environment.local
-    restart: unless-stopped
-
-  social-service:
-    build:
-      context: .
-      dockerfile: ./core.aifixr.site/social/Dockerfile
-    container_name: social
-    ports:
-      - "8106:8080"
-    depends_on:
-      - redis
-    env_file:
-      - .env
-    environment:
-      - REDIS_HOST=redis
-      - REDIS_PORT=6379
-      - REDIS_PASSWORD=${REDIS_PASSWORD:-Redis0930!}
-    networks:
-      aifixr-network:
-        aliases:
-          - social.local
-    restart: unless-stopped
-
-  governance-service:
-    build:
-      context: .
-      dockerfile: ./core.aifixr.site/governance/Dockerfile
-    container_name: governance
-    ports:
-      - "8107:8080"
-    depends_on:
-      - redis
-    env_file:
-      - .env
-    environment:
-      - REDIS_HOST=redis
-      - REDIS_PORT=6379
-      - REDIS_PASSWORD=${REDIS_PASSWORD:-Redis0930!}
-    networks:
-      aifixr-network:
-        aliases:
-          - governance.local
-    restart: unless-stopped
-
-  user-service:
-    build:
-      context: .
-      dockerfile: ./core.aifixr.site/user/Dockerfile
-    container_name: user
-    ports:
-      - "8104:8080"
-    depends_on:
-      - redis
-    env_file:
-      - .env
-    environment:
-      - REDIS_HOST=redis
-      - REDIS_PORT=6379
-      - REDIS_PASSWORD=${REDIS_PASSWORD:-Redis0930!}
-    networks:
-      aifixr-network:
-        aliases:
-          - user.local
-    restart: unless-stopped
-
-  oauth-service:
-    build:
-      context: .
-      dockerfile: ./core.aifixr.site/oauthservice/Dockerfile
-    container_name: oauth-service
-    ports:
-      - "8085:8085"
     depends_on:
       - db
+      - redis
     env_file:
       - .env
     environment:
+      - REDIS_HOST=redis
+      - REDIS_PORT=6379
+      - REDIS_PASSWORD=${REDIS_PASSWORD:-Redis0930!}
+      - REDIS_SSL_ENABLED=false
       - SPRING_PROFILES_ACTIVE=production
     networks:
-      aifixr-network:
+      elianayesol-network:
         aliases:
-          - oauth.local
+          - api-service.local
+          - gateway.local
     restart: unless-stopped
     healthcheck:
-      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:8085/actuator/health"]
+      test: ["CMD", "curl", "-f", "http://localhost:8080/actuator/health"]
       interval: 30s
       timeout: 10s
       retries: 3
       start_period: 40s
 
   # ========================================
+  # 개별 Spring Services (통합됨 - 주석 처리)
+  # 모든 서비스가 api-service에 통합되었습니다
+  # ========================================
+  # common-service:
+  #   build:
+  #     context: .
+  #     dockerfile: ./core.elianayesol.com/common/Dockerfile
+  #   container_name: common
+  #   ports:
+  #     - "8101:8080"
+  #   depends_on:
+  #     - redis
+  #   env_file:
+  #     - .env
+  #   environment:
+  #     - REDIS_HOST=redis
+  #     - REDIS_PORT=6379
+  #     - REDIS_PASSWORD=${REDIS_PASSWORD:-Redis0930!}
+  #   networks:
+  #     aifixr-network:
+  #       aliases:
+  #         - common.local
+  #   restart: unless-stopped
+
+  # environment-service:
+  #   build:
+  #     context: .
+  #     dockerfile: ./core.elianayesol.com/environment/Dockerfile
+  #   container_name: environment
+  #   ports:
+  #     - "8105:8080"
+  #   depends_on:
+  #     - redis
+  #   env_file:
+  #     - .env
+  #   environment:
+  #     - REDIS_HOST=redis
+  #     - REDIS_PORT=6379
+  #     - REDIS_PASSWORD=${REDIS_PASSWORD:-Redis0930!}
+  #   networks:
+  #     aifixr-network:
+  #       aliases:
+  #         - environment.local
+  #   restart: unless-stopped
+
+  # social-service:
+  #   build:
+  #     context: .
+  #     dockerfile: ./core.elianayesol.com/social/Dockerfile
+  #   container_name: social
+  #   ports:
+  #     - "8106:8080"
+  #   depends_on:
+  #     - redis
+  #   env_file:
+  #     - .env
+  #   environment:
+  #     - REDIS_HOST=redis
+  #     - REDIS_PORT=6379
+  #     - REDIS_PASSWORD=${REDIS_PASSWORD:-Redis0930!}
+  #   networks:
+  #     aifixr-network:
+  #       aliases:
+  #         - social.local
+  #   restart: unless-stopped
+
+  # governance-service:
+  #   build:
+  #     context: .
+  #     dockerfile: ./core.elianayesol.com/governance/Dockerfile
+  #   container_name: governance
+  #   ports:
+  #     - "8107:8080"
+  #   depends_on:
+  #     - redis
+  #   env_file:
+  #     - .env
+  #   environment:
+  #     - REDIS_HOST=redis
+  #     - REDIS_PORT=6379
+  #     - REDIS_PASSWORD=${REDIS_PASSWORD:-Redis0930!}
+  #   networks:
+  #     aifixr-network:
+  #       aliases:
+  #         - governance.local
+  #   restart: unless-stopped
+
+  # user-service:
+  #   build:
+  #     context: .
+  #     dockerfile: ./core.elianayesol.com/user/Dockerfile
+  #   container_name: user
+  #   ports:
+  #     - "8104:8080"
+  #   depends_on:
+  #     - redis
+  #   env_file:
+  #     - .env
+  #   environment:
+  #     - REDIS_HOST=redis
+  #     - REDIS_PORT=6379
+  #     - REDIS_PASSWORD=${REDIS_PASSWORD:-Redis0930!}
+  #   networks:
+  #     aifixr-network:
+  #       aliases:
+  #         - user.local
+  #   restart: unless-stopped
+
+  # oauth-service:
+  #   build:
+  #     context: .
+  #     dockerfile: ./core.elianayesol.com/oauthservice/Dockerfile
+  #   container_name: oauth-service
+  #   ports:
+  #     - "8085:8085"
+  #   depends_on:
+  #     - db
+  #   env_file:
+  #     - .env
+  #   environment:
+  #     - SPRING_PROFILES_ACTIVE=production
+  #   networks:
+  #     aifixr-network:
+  #       aliases:
+  #         - oauth.local
+  #   restart: unless-stopped
+  #   healthcheck:
+  #     test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:8085/actuator/health"]
+  #     interval: 30s
+  #     timeout: 10s
+  #     retries: 3
+  #     start_period: 40s
+
+  # ========================================
   # FastAPI Services (AI/ML)
   # ========================================
   crawler-service:
     build:
-      context: ./ai.aifixr.site/feed/crawlerservice
+      context: ./ai.elianayesol.com/feed/crawlerservice
       dockerfile: Dockerfile
     ports:
       - "9001:9001"
     container_name: crawler-service
     networks:
-      aifixr-network:
+      elianayesol-network:
         aliases:
           - crawler.local
     restart: unless-stopped
 
   chatbot-service:
     build:
-      context: ./ai.aifixr.site/rag/chatbotservice
+      context: ./ai.elianayesol.com/rag/chatbotservice
       dockerfile: Dockerfile
     ports:
       - "9002:9002"
     container_name: chatbot-service
     networks:
-      aifixr-network:
+      elianayesol-network:
         aliases:
           - chatbot.local
     restart: unless-stopped
 
   ml-service:
     build:
-      context: ./ai.aifixr.site/mlservice
+      context: ./ai.elianayesol.com/mlservice
       dockerfile: Dockerfile
     ports:
       - "9003:9003"
@@ -232,18 +245,18 @@ services:
     env_file:
       - .env
     volumes:
-      - ./ai.aifixr.site/mlservice/app/seoul_crime/save:/app/app/seoul_crime/save
-      - ./ai.aifixr.site/mlservice/app/nlp/save:/app/app/nlp/save
-      - ./ai.aifixr.site/mlservice/app/nlp:/app/app/nlp
+      - ./ai.elianayesol.com/mlservice/app/seoul_crime/save:/app/app/seoul_crime/save
+      - ./ai.elianayesol.com/mlservice/app/nlp/save:/app/app/nlp/save
+      - ./ai.elianayesol.com/mlservice/app/nlp:/app/app/nlp
     networks:
-      aifixr-network:
+      elianayesol-network:
         aliases:
           - ml-service.local
     restart: unless-stopped
 
   transformer-service:
     build:
-      context: ./ai.aifixr.site/transformerservice
+      context: ./ai.elianayesol.com/transformerservice
       dockerfile: Dockerfile
     ports:
       - "9020:9020"
@@ -252,9 +265,9 @@ services:
       - .env
     volumes:
       # 모델 캐시 디렉토리 마운트 (모델 파일 유지)
-      - ./ai.aifixr.site/transformerservice/app/koelectra/koelectra_model:/app/app/koelectra/koelectra_model
+      - ./ai.elianayesol.com/transformerservice/app/koelectra/koelectra_model:/app/app/koelectra/koelectra_model
     networks:
-      aifixr-network:
+      elianayesol-network:
         aliases:
           - transformer-service.local
     restart: unless-stopped
@@ -263,7 +276,7 @@ services:
 # Networks
 # ========================================
 networks:
-  aifixr-network:
+  elianayesol-network:
     driver: bridge
 
 # ========================================
