@@ -1,0 +1,3 @@
+[submodule "api.elianayesol.com"]
+	path = api.elianayesol.com
+	url = https://github.com/dpthf001107/elianaapi
