@@ -26,7 +26,7 @@ export default function FeatureSection() {
     {
       icon: Wand2,
       title: '윤문 AI (AIFIXR)',
-      description: 'AIFIXR Assistant가 문서를 다듬고 요약하여 완성도를 높여드립니다',
+      description: 'Assistant가 문서를 다듬고 요약하여 완성도를 높여드립니다',
       color: 'from-[#8B5CF6] to-[#E91E8C]',
       bgColor: 'bg-[#8B5CF6]/5'
     }

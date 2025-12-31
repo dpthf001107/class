@@ -52,9 +52,8 @@ export default function HeroSection({ onStartDiagnosis, onWatchDemo }: HeroSecti
               </div>
 
               {/* H1 Headline */}
-              <h1 className="mb-6 text-3xl lg:text-5xl font-bold bg-gradient-to-r from-[#0D4ABB] via-[#E91E8C] to-[#8B5CF6] bg-clip-text text-transparent leading-normal" style={{ fontFamily: 'Inter Tight, Arial, sans-serif' }}>
-                AIFIX로 ESG 진단부터  <br className="hidden lg:block" />
-                보고서, 공급망까지 한 번에
+              <h1 className="mb-6 text-xl lg:text-4xl font-bold bg-gradient-to-r from-[#0D4ABB] via-[#E91E8C] to-[#8B5CF6] bg-clip-text text-transparent leading-normal" style={{ fontFamily: 'Inter Tight, Arial, sans-serif' }}>
+                안녕하세요. 안녕하세요 ELIANA 님,
               </h1>
 
               {/* H2 Subheadline */}

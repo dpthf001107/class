@@ -17,10 +17,10 @@ export default function FloatingAIButton() {
           style={{
             boxShadow: '0 4px 20px rgba(0, 212, 255, 0.4)'
           }}
-          aria-label="AIFIXR Assistant"
+          aria-label="ASSISTANT"
         >
           <Sparkles className="w-5 h-5 text-white" />
-          <span className="text-white font-semibold text-sm whitespace-nowrap">AIFIXR Assistant</span>
+          <span className="text-white font-semibold text-sm whitespace-nowrap">ASSISTANT</span>
         </button>
       </div>
 

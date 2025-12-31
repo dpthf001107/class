@@ -108,7 +108,7 @@ export default function MainNavigation({ activeTab, setActiveTab, onLoginRequire
               }`}
             >
               <Sparkles className="w-5 h-5" />
-              <span className="font-medium"> AIFIXR Assistant</span>
+              <span className="font-medium"> ASSISTANT</span>
             </button>
           </nav>
         </div>

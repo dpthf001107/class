@@ -30,7 +30,7 @@ export default function AIFIXRPanel({ isOpen, onClose }: AIFIXRPanelProps) {
   const [chatMessages, setChatMessages] = useState<Array<{ role: 'assistant' | 'user'; content: string }>>([
     {
       role: 'assistant',
-      content: '안녕하세요! AIFIXR Assistant입니다. ESG 관련 질문이나 문서 윤문, 요약 등을 도와드립니다.'
+      content: '안녕하세요! Assistant입니다. ESG 관련 질문이나 문서 윤문, 요약 등을 도와드립니다.'
     }
   ]);
   
@@ -81,7 +81,7 @@ export default function AIFIXRPanel({ isOpen, onClose }: AIFIXRPanelProps) {
               </div>
               <div>
                 <h3 className="font-semibold" style={{ fontSize: '18px' }}>
-                  AIFIXR Assistant
+                  ASSISTANT
                 </h3>
                 <p className="text-white/80" style={{ fontSize: '12px' }}>
                   온라인

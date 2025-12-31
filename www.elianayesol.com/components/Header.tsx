@@ -15,7 +15,7 @@ export default function Header({ onLoginClick }: HeaderProps) {
             <Sparkles className="w-6 h-6 text-white" />
           </div>
           <span className="text-2xl font-bold text-[#1a2332] whitespace-nowrap" style={{ fontFamily: 'Inter Tight, Arial, sans-serif' }}>
-            AIFIX
+            ELIANAYESOL
           </span>
         </Link>
 
