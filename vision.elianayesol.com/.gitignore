@@ -51,3 +51,87 @@ outputs/
 
 # Security / Certificates
 *.pem
+
+# ========================================
+# Large Model Files (GitHub 100MB limit)
+# ========================================
+# YOLO / Computer Vision model files
+*.pt
+*.pth
+*.weights
+*.onnx
+*.tflite
+*.pb
+*.h5
+*.ckpt
+*.safetensors
+*.bin
+*.pkl
+*.joblib
+
+# Model directories
+**/model/
+**/models/
+**/checkpoints/
+**/weights/
+**/pretrained/
+**/runs/
+**/wandb/
+
+# ========================================
+# Large Dataset Files
+# ========================================
+# MNIST / Dataset files
+*.idx3-ubyte
+*.idx1-ubyte
+*.gz
+*.zip
+*.tar
+*.tar.gz
+*.7z
+*.rar
+
+# Image/Video datasets
+**/data/
+**/datasets/
+**/raw/
+**/train/
+**/test/
+**/val/
+**/validation/
+
+# Large image/video files (keep small samples, ignore large datasets)
+*.mp4
+*.avi
+*.mov
+*.mkv
+*.webm
+*.flv
+
+# ========================================
+# Output Files
+# ========================================
+# Detection/segmentation results
+*_detected.jpg
+*_detected.png
+*_segmented.jpg
+*_segmented.png
+*_pose.jpg
+*_pose.png
+*_result.jpg
+*_result.png
+
+# Generated images
+app/diffuzers/outputs/
+**/outputs/images/
+**/outputs/metadata/
+
+# ========================================
+# Cache and Temporary Files
+# ========================================
+*.cache
+.cache/
+*.tmp
+*.temp
+temp/
+tmp/
