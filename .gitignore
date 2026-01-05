@@ -51,3 +51,14 @@ outputs/
 
 # Security / Certificates
 *.pem
+
+# ========================================
+# Build Output (Java/Gradle)
+# ========================================
+bin/
+**/bin/
+
+# ========================================
+# Legacy/Old Projects (No longer used)
+# ========================================
+core.aifixr.site/
