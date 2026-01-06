@@ -1,11 +1,11 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, Suspense } from 'react';
 import { useSearchParams, useRouter } from 'next/navigation';
 import { Button } from '@/app/components/ui/button';
 import { ArrowLeft, Download, RefreshCw } from 'lucide-react';
 
-export default function UploadResultPage() {
+function UploadResultContent() {
   const searchParams = useSearchParams();
   const router = useRouter();
   const [imageUrl, setImageUrl] = useState<string | null>(null);
@@ -259,6 +259,25 @@ export default function UploadResultPage() {
         </div>
       </div>
     </div>
+  );
+}
+
+export default function UploadResultPage() {
+  return (
+    <Suspense fallback={
+      <div className="min-h-screen bg-white">
+        <div className="pt-24 pb-16">
+          <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8">
+            <div className="bg-white rounded-xl shadow-lg p-16 text-center">
+              <RefreshCw className="w-12 h-12 animate-spin mx-auto mb-4 text-blue-600" />
+              <p className="text-gray-600">페이지를 불러오는 중...</p>
+            </div>
+          </div>
+        </div>
+      </div>
+    }>
+      <UploadResultContent />
+    </Suspense>
   );
 }
 

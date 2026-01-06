@@ -1,11 +1,11 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useState, Suspense } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { AuthService } from '@/app/services/authservice';
 import { useAuth } from '@/app/hooks/useAuth';
 
-export default function GoogleCallbackPage() {
+function GoogleCallbackContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const { login } = useAuth();
@@ -137,6 +137,24 @@ export default function GoogleCallbackPage() {
         </div>
       </div>
     </div>
+  );
+}
+
+export default function GoogleCallbackPage() {
+  return (
+    <Suspense fallback={
+      <div className="flex min-h-screen items-center justify-center bg-gradient-to-br from-blue-50 via-white to-green-50">
+        <div className="w-full max-w-md p-8 bg-white rounded-2xl shadow-xl">
+          <div className="flex flex-col items-center">
+            <div className="w-16 h-16 border-4 border-blue-500 border-t-transparent rounded-full animate-spin mb-6"></div>
+            <h2 className="text-2xl font-semibold text-gray-800 mb-2">로딩 중...</h2>
+            <p className="text-gray-600 text-center">페이지를 불러오는 중입니다...</p>
+          </div>
+        </div>
+      </div>
+    }>
+      <GoogleCallbackContent />
+    </Suspense>
   );
 }
 
