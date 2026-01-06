@@ -3,6 +3,9 @@ import { readFile } from 'fs/promises';
 import { join, resolve, normalize } from 'path';
 import { existsSync } from 'fs';
 
+// Next.js 16에서 API 라우트가 빌드 타임에 정적으로 생성되지 않도록 설정
+export const dynamic = 'force-dynamic';
+
 export async function GET(request: NextRequest) {
   try {
     const searchParams = request.nextUrl.searchParams;

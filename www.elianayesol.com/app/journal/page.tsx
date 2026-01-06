@@ -6,6 +6,9 @@ import { Calendar } from 'lucide-react';
 import { journalEntries } from '../data/mockData';
 import { TagFilter } from '../components/TagFilter';
 
+// Next.js 16에서 빌드 타임 정적 생성 방지
+export const dynamic = 'force-dynamic';
+
 export default function JournalPage() {
   const [selectedTag, setSelectedTag] = useState<string | null>(null);
 

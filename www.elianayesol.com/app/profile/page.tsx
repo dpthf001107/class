@@ -3,6 +3,9 @@
 import { motion } from 'motion/react';
 import { Briefcase, GraduationCap, Code2, Database, Palette, Globe } from 'lucide-react';
 
+// Next.js 16에서 빌드 타임 정적 생성 방지
+export const dynamic = 'force-dynamic';
+
 export default function ProfilePage() {
   const skills = [
     { category: 'Languages', items: ['JavaScript', 'TypeScript', 'Python', 'SQL'] },

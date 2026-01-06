@@ -6,6 +6,9 @@ import { projects } from '../data/mockData';
 import { ProjectCard } from '../components/ProjectCard';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '../components/ui/tabs';
 
+// Next.js 16에서 빌드 타임 정적 생성 방지
+export const dynamic = 'force-dynamic';
+
 export default function ProjectsPage() {
   const [selectedCategory, setSelectedCategory] = useState<string>('all');
 

@@ -4,6 +4,9 @@ import { useState } from 'react';
 import ImageUploadArea from '@/app/components/ImageUploadArea';
 import LoginModal from '@/app/components/LoginModal';
 
+// Next.js 16에서 빌드 타임 정적 생성 방지
+export const dynamic = 'force-dynamic';
+
 export default function UploadPage() {
   const [isLoginModalOpen, setIsLoginModalOpen] = useState(false);
 

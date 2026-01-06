@@ -4,6 +4,9 @@ import { motion } from 'motion/react';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, LineChart, Line } from 'recharts';
 import { TrendingUp, Activity, Zap } from 'lucide-react';
 
+// Next.js 16에서 빌드 타임 정적 생성 방지
+export const dynamic = 'force-dynamic';
+
 export default function LabPage() {
   const esgData = [
     { name: 'Environmental', score: 85 },

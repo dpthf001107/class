@@ -6,6 +6,9 @@ import { ArrowRight, Code, Lightbulb, TrendingUp } from 'lucide-react';
 import { projects } from './data/mockData';
 import { ProjectCard } from './components/ProjectCard';
 
+// Next.js 16에서 빌드 타임 정적 생성 방지
+export const dynamic = 'force-dynamic';
+
 export default function Home() {
   const featuredProjects = projects.slice(0, 3);
 
