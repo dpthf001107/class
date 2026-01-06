@@ -2,11 +2,13 @@
 
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { Moon, Sun, Menu, X, LogIn, Upload } from 'lucide-react';
+import { Moon, Sun, Menu, X, LogIn, LogOut, Upload, User } from 'lucide-react';
 import { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import { useRouter } from 'next/navigation';
 import LoginModal from './LoginModal';
+import { useAuth } from '@/app/hooks/useAuth';
+import { AuthService } from '@/app/services/authservice';
 
 export function Navbar() {
   const [isDark, setIsDark] = useState(false);
@@ -14,6 +16,7 @@ export function Navbar() {
   const [isLoginModalOpen, setIsLoginModalOpen] = useState(false);
   const pathname = usePathname();
   const router = useRouter();
+  const { isAuthenticated, userInfo } = useAuth();
 
   useEffect(() => {
     if (isDark) {
@@ -66,15 +69,34 @@ export function Navbar() {
             ))}
           </div>
 
-          {/* Login Button, Theme Toggle & Mobile Menu Button */}
+          {/* Login/Logout Button, Theme Toggle & Mobile Menu Button */}
           <div className="flex items-center gap-4">
-            <button
-              onClick={() => setIsLoginModalOpen(true)}
-              className="hidden md:flex items-center gap-2 px-4 py-2 rounded-md text-sm font-medium border border-blue-600 dark:border-blue-400 text-blue-600 dark:text-blue-400 hover:bg-blue-50 dark:hover:bg-blue-900/20 transition-colors"
-            >
-              <LogIn className="w-4 h-4" />
-              <span>Login</span>
-            </button>
+            {isAuthenticated ? (
+              <div className="hidden md:flex items-center gap-4">
+                <div className="flex items-center gap-2 text-sm text-slate-600 dark:text-slate-300">
+                  <User className="w-4 h-4" />
+                  <span>{userInfo?.name || userInfo?.email || 'User'}</span>
+                </div>
+                <button
+                  onClick={async () => {
+                    await AuthService.logout();
+                    router.push('/');
+                  }}
+                  className="flex items-center gap-2 px-4 py-2 rounded-md text-sm font-medium border border-red-600 dark:border-red-400 text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20 transition-colors"
+                >
+                  <LogOut className="w-4 h-4" />
+                  <span>Logout</span>
+                </button>
+              </div>
+            ) : (
+              <button
+                onClick={() => setIsLoginModalOpen(true)}
+                className="hidden md:flex items-center gap-2 px-4 py-2 rounded-md text-sm font-medium border border-blue-600 dark:border-blue-400 text-blue-600 dark:text-blue-400 hover:bg-blue-50 dark:hover:bg-blue-900/20 transition-colors"
+              >
+                <LogIn className="w-4 h-4" />
+                <span>Login</span>
+              </button>
+            )}
 
             <button
               onClick={() => router.push('/upload')}
@@ -136,16 +158,36 @@ export function Navbar() {
                   {link.label}
                 </Link>
               ))}
-              <button
-                onClick={() => {
-                  setIsMobileMenuOpen(false);
-                  setIsLoginModalOpen(true);
-                }}
-                className="w-full mt-4 px-4 py-2 rounded-md text-sm font-medium border border-blue-600 dark:border-blue-400 text-blue-600 dark:text-blue-400 hover:bg-blue-50 dark:hover:bg-blue-900/20 transition-colors flex items-center justify-center gap-2"
-              >
-                <LogIn className="w-4 h-4" />
-                <span>Login</span>
-              </button>
+              {isAuthenticated ? (
+                <div className="mt-4 space-y-2">
+                  <div className="px-4 py-2 text-sm text-slate-600 dark:text-slate-300 flex items-center gap-2">
+                    <User className="w-4 h-4" />
+                    <span>{userInfo?.name || userInfo?.email || 'User'}</span>
+                  </div>
+                  <button
+                    onClick={async () => {
+                      setIsMobileMenuOpen(false);
+                      await AuthService.logout();
+                      router.push('/');
+                    }}
+                    className="w-full px-4 py-2 rounded-md text-sm font-medium border border-red-600 dark:border-red-400 text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20 transition-colors flex items-center justify-center gap-2"
+                  >
+                    <LogOut className="w-4 h-4" />
+                    <span>Logout</span>
+                  </button>
+                </div>
+              ) : (
+                <button
+                  onClick={() => {
+                    setIsMobileMenuOpen(false);
+                    setIsLoginModalOpen(true);
+                  }}
+                  className="w-full mt-4 px-4 py-2 rounded-md text-sm font-medium border border-blue-600 dark:border-blue-400 text-blue-600 dark:text-blue-400 hover:bg-blue-50 dark:hover:bg-blue-900/20 transition-colors flex items-center justify-center gap-2"
+                >
+                  <LogIn className="w-4 h-4" />
+                  <span>Login</span>
+                </button>
+              )}
             </div>
           </motion.div>
         )}
