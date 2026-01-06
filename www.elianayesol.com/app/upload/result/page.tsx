@@ -2,31 +2,23 @@
 
 import { useState, useEffect } from 'react';
 import { useSearchParams, useRouter } from 'next/navigation';
-import Header from '@/components/Header';
-import MainNavigation from '@/components/MainNavigation';
-import LoginModal from '@/components/LoginModal';
-import { createMainHandlers } from '@/services/mainservice';
-import { Button } from '@/components/ui/button';
+import { Button } from '@/app/components/ui/button';
 import { ArrowLeft, Download, RefreshCw } from 'lucide-react';
 
 export default function UploadResultPage() {
   const searchParams = useSearchParams();
   const router = useRouter();
-  const [activeMainTab, setActiveMainTab] = useState('upload');
-  const [isLoginModalOpen, setIsLoginModalOpen] = useState(false);
   const [imageUrl, setImageUrl] = useState<string | null>(null);
   const [originalImageUrl, setOriginalImageUrl] = useState<string | null>(null);
   const [generalDetectedUrl, setGeneralDetectedUrl] = useState<string | null>(null);
   const [segmentedUrl, setSegmentedUrl] = useState<string | null>(null);
+  const [faceDetectedUrl, setFaceDetectedUrl] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
-  const { handleLoginClick, handleLoginRequired, handleLogin } =  
-    createMainHandlers(setIsLoginModalOpen);
-
   const fileName = searchParams.get('file');
-  // 얼굴 디텍션 결과 파일명 (yolov8n-face.pt 사용)
-  const detectedFileName = fileName ? fileName.replace(/\.(jpg|jpeg|png)$/i, '_face_detected.$1') : null;
+  // 얼굴 디텍션 결과 파일명
+  const faceDetectedFileName = fileName ? fileName.replace(/\.(jpg|jpeg|png)$/i, '_face_detected.$1') : null;
   // 일반 객체 디텍션 결과 파일명
   const generalDetectedFileName = fileName ? fileName.replace(/\.(jpg|jpeg|png)$/i, '_detected.$1') : null;
   // 세그멘테이션 결과 파일명
@@ -43,10 +35,10 @@ export default function UploadResultPage() {
     const loadImages = async () => {
       try {
         // API를 통해 이미지 로드
-        const detectedUrl = `/api/image?path=${encodeURIComponent(`../cv.aifixr.site/app/data/yolo/${detectedFileName}`)}`;
-        const originalUrl = `/api/image?path=${encodeURIComponent(`../cv.aifixr.site/app/data/yolo/${fileName}`)}`;
-        const generalDetectedUrl = `/api/image?path=${encodeURIComponent(`../cv.aifixr.site/app/data/yolo/${generalDetectedFileName}`)}`;
-        const segmentedUrl = `/api/image?path=${encodeURIComponent(`../cv.aifixr.site/app/data/yolo/${segmentedFileName}`)}`;
+        const faceDetectedUrl = `/api/image?path=${encodeURIComponent(`../vision.elianayesol.com/app/data/yolo/${faceDetectedFileName}`)}`;
+        const originalUrl = `/api/image?path=${encodeURIComponent(`../vision.elianayesol.com/app/data/yolo/${fileName}`)}`;
+        const generalDetectedUrl = `/api/image?path=${encodeURIComponent(`../vision.elianayesol.com/app/data/yolo/${generalDetectedFileName}`)}`;
+        const segmentedUrl = `/api/image?path=${encodeURIComponent(`../vision.elianayesol.com/app/data/yolo/${segmentedFileName}`)}`;
         
         // 이미지가 실제로 존재하는지 확인
         const checkImage = async (url: string) => {
@@ -59,10 +51,10 @@ export default function UploadResultPage() {
         };
         
         // 디텍션된 이미지 확인 (최대 10초 대기)
-        let detectedUrlValid = null;
+        let faceDetectedUrlValid = null;
         for (let i = 0; i < 20; i++) {
-          detectedUrlValid = await checkImage(detectedUrl);
-          if (detectedUrlValid) break;
+          faceDetectedUrlValid = await checkImage(faceDetectedUrl);
+          if (faceDetectedUrlValid) break;
           await new Promise(resolve => setTimeout(resolve, 500));
         }
         
@@ -70,10 +62,8 @@ export default function UploadResultPage() {
         const generalDetectedUrlValid = await checkImage(generalDetectedUrl);
         const segmentedUrlValid = await checkImage(segmentedUrl);
         
-        if (detectedUrlValid) {
-          setImageUrl(detectedUrlValid);
-        } else {
-          setError('디텍션 결과 이미지를 찾을 수 없습니다. 잠시 후 다시 시도해주세요.');
+        if (faceDetectedUrlValid) {
+          setFaceDetectedUrl(faceDetectedUrlValid);
         }
         
         if (originalUrlValid) {
@@ -88,6 +78,13 @@ export default function UploadResultPage() {
           setSegmentedUrl(segmentedUrlValid);
         }
         
+        // 하나라도 이미지가 있으면 성공
+        if (faceDetectedUrlValid || originalUrlValid || generalDetectedUrlValid || segmentedUrlValid) {
+          setImageUrl(faceDetectedUrlValid || originalUrlValid || generalDetectedUrlValid || segmentedUrlValid);
+        } else {
+          setError('디텍션 결과 이미지를 찾을 수 없습니다. 잠시 후 다시 시도해주세요.');
+        }
+        
         setLoading(false);
       } catch (err) {
         setError('이미지를 불러올 수 없습니다.');
@@ -96,24 +93,12 @@ export default function UploadResultPage() {
     };
 
     loadImages();
-  }, [fileName, detectedFileName, generalDetectedFileName, segmentedFileName]);
+  }, [fileName, faceDetectedFileName, generalDetectedFileName, segmentedFileName]);
 
   return (
     <div className="min-h-screen bg-white">
-      {/* Header */}
-      <Header 
-        onLoginClick={handleLoginClick}
-      />
-
-      {/* Main Navigation */}
-      <MainNavigation 
-        activeTab={activeMainTab}
-        setActiveTab={setActiveMainTab}
-        onLoginRequired={handleLoginRequired}
-      />
-
       {/* Content */}
-      <div className="pt-[144px] pb-16">
+      <div className="pt-24 pb-16">
         <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8">
           {/* 헤더 */}
           <div className="mb-8">
@@ -136,7 +121,7 @@ export default function UploadResultPage() {
           {/* 결과 영역 */}
           {loading ? (
             <div className="bg-white rounded-xl shadow-lg p-16 text-center">
-              <RefreshCw className="w-12 h-12 animate-spin mx-auto mb-4 text-[#0D4ABB]" />
+              <RefreshCw className="w-12 h-12 animate-spin mx-auto mb-4 text-blue-600" />
               <p className="text-gray-600">이미지를 불러오는 중...</p>
             </div>
           ) : error ? (
@@ -148,9 +133,9 @@ export default function UploadResultPage() {
           ) : (
             <div className="grid md:grid-cols-2 gap-6">
               {/* 원본 이미지 */}
-              <div className="bg-white rounded-xl shadow-lg p-6">
-                <h2 className="text-xl font-bold text-[#1a2332] mb-4">원본 이미지</h2>
-                {originalImageUrl && (
+              {originalImageUrl && (
+                <div className="bg-white rounded-xl shadow-lg p-6">
+                  <h2 className="text-xl font-bold text-[#1a2332] mb-4">원본 이미지</h2>
                   <div className="relative">
                     <img
                       src={originalImageUrl}
@@ -159,46 +144,46 @@ export default function UploadResultPage() {
                       onError={() => setError('원본 이미지를 불러올 수 없습니다.')}
                     />
                   </div>
-                )}
-                {fileName && (
-                  <p className="text-sm text-gray-500 mt-2 text-center">{fileName}</p>
-                )}
-              </div>
+                  {fileName && (
+                    <p className="text-sm text-gray-500 mt-2 text-center">{fileName}</p>
+                  )}
+                </div>
+              )}
 
               {/* 얼굴 디텍션 결과 이미지 */}
-              <div className="bg-white rounded-xl shadow-lg p-6">
-                <h2 className="text-xl font-bold text-[#1a2332] mb-4">얼굴 디텍션 결과</h2>
-                {imageUrl && (
+              {faceDetectedUrl && (
+                <div className="bg-white rounded-xl shadow-lg p-6">
+                  <h2 className="text-xl font-bold text-[#1a2332] mb-4">얼굴 디텍션 결과</h2>
                   <div className="relative">
                     <img
-                      src={imageUrl}
+                      src={faceDetectedUrl}
                       alt="얼굴 디텍션 결과"
                       className="w-full rounded-lg object-contain max-h-[600px] mx-auto"
                       onError={() => setError('얼굴 디텍션 결과 이미지를 불러올 수 없습니다.')}
                     />
                   </div>
-                )}
-                {detectedFileName && (
-                  <div className="mt-4 flex items-center justify-center gap-3">
-                    <p className="text-sm text-gray-500">{detectedFileName}</p>
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={() => {
-                        if (imageUrl) {
-                          const link = document.createElement('a');
-                          link.href = imageUrl;
-                          link.download = detectedFileName || 'face_detected.jpg';
-                          link.click();
-                        }
-                      }}
-                    >
-                      <Download className="w-4 h-4 mr-2" />
-                      다운로드
-                    </Button>
-                  </div>
-                )}
-              </div>
+                  {faceDetectedFileName && (
+                    <div className="mt-4 flex items-center justify-center gap-3">
+                      <p className="text-sm text-gray-500">{faceDetectedFileName}</p>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => {
+                          if (faceDetectedUrl) {
+                            const link = document.createElement('a');
+                            link.href = faceDetectedUrl;
+                            link.download = faceDetectedFileName || 'face_detected.jpg';
+                            link.click();
+                          }
+                        }}
+                      >
+                        <Download className="w-4 h-4 mr-2" />
+                        다운로드
+                      </Button>
+                    </div>
+                  )}
+                </div>
+              )}
 
               {/* 일반 객체 디텍션 결과 이미지 */}
               {generalDetectedUrl && (
@@ -273,13 +258,6 @@ export default function UploadResultPage() {
           )}
         </div>
       </div>
-
-      {/* Login Modal */}
-      <LoginModal 
-        isOpen={isLoginModalOpen}
-        onClose={() => setIsLoginModalOpen(false)}
-        onLogin={handleLogin}
-      />
     </div>
   );
 }

@@ -1,74 +1,16 @@
-# AIFIX ESG Platform Landing Page
 
-Next.js 15 + React + TypeScript + Tailwind CSS 기반의 랜딩 페이지 프로젝트입니다.
+# www.elianayesol.com
 
-## 기술 스택
+This is the main website for elianayesol.com.
 
-- **Framework**: Next.js 15
-- **UI Library**: React 19
-- **Language**: TypeScript
-- **Styling**: Tailwind CSS
-- **Package Manager**: pnpm
+## Running the code
 
-## 시작하기
+Run `pnpm install` to install the dependencies.
 
-### 필수 요구사항
+Run `pnpm dev` to start the development server (runs on port 3000).
 
-- Node.js 18.17 이상
-- pnpm 9.0.0 이상
+## Features
 
-### 설치
-
-```bash
-# 의존성 설치
-pnpm install
-```
-
-### 개발 서버 실행
-
-```bash
-pnpm dev
-```
-
-브라우저에서 [http://localhost:3000](http://localhost:3000)을 열어 확인하세요.
-
-### 빌드
-
-```bash
-pnpm build
-```
-
-### 프로덕션 실행
-
-```bash
-pnpm start
-```
-
-## 프로젝트 구조
-
-```
-.
-├── app/                    # Next.js App Router
-│   ├── layout.tsx         # 루트 레이아웃
-│   ├── page.tsx           # 홈 페이지
-│   └── globals.css        # 전역 스타일
-├── src/
-│   └── components/        # React 컴포넌트
-│       ├── ui/           # UI 컴포넌트
-│       └── ...
-├── public/                # 정적 파일
-├── next.config.js         # Next.js 설정
-├── tailwind.config.ts     # Tailwind CSS 설정
-└── tsconfig.json          # TypeScript 설정
-```
-
-## 주요 기능
-
-- 반응형 디자인
-- 다크 모드 지원 (next-themes)
-- 컴포넌트 기반 아키텍처
-- TypeScript 타입 안정성
-
-## 라이선스
-
-Private
+- OAuth login (Google, Kakao, Naver)
+- Image upload and YOLO detection
+- Personal portfolio showcase

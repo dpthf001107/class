@@ -1,20 +1,28 @@
-import type { Metadata } from "next";
-import "./globals.css";
+import type { Metadata } from 'next'
+import { Navbar } from './components/Navbar'
+import { Footer } from './components/Footer'
+import './styles/index.css'
 
 export const metadata: Metadata = {
-  title: "AIFIX ESG Platform Landing Page",
-  description: "AIFIX ESG Platform Landing Page",
-};
+  title: 'www.elianayesol.com',
+  description: 'Building ESG + AI Products for a Better Future',
+}
 
 export default function RootLayout({
   children,
-}: Readonly<{
-  children: React.ReactNode;
-}>) {
+}: {
+  children: React.ReactNode
+}) {
   return (
-    <html lang="ko">
-      <body>{children}</body>
+    <html lang="en" suppressHydrationWarning>
+      <body className="min-h-screen flex flex-col bg-white dark:bg-slate-950">
+        <Navbar />
+        <main className="flex-1">
+          {children}
+        </main>
+        <Footer />
+      </body>
     </html>
-  );
+  )
 }
 

@@ -3,14 +3,12 @@
 import { useEffect, useState } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { AuthService } from '@/app/services/authservice';
-import { useAuth } from '@/app/hooks/useAuth';
 
-export default function GoogleCallbackPage() {
+export default function NaverCallbackPage() {
   const router = useRouter();
   const searchParams = useSearchParams();
-  const { login } = useAuth();
   const [status, setStatus] = useState<'loading' | 'success' | 'error'>('loading');
-  const [message, setMessage] = useState('구글 로그인 처리 중...');
+  const [message, setMessage] = useState('네이버 로그인 처리 중...');
 
   useEffect(() => {
     const handleCallback = async () => {
@@ -38,7 +36,7 @@ export default function GoogleCallbackPage() {
           });
 
           setStatus('success');
-          setMessage('로그인 성공!');
+          setMessage('네이버 로그인 성공!');
           
           // 2초 후 홈으로 리다이렉트
           setTimeout(() => {
@@ -47,45 +45,11 @@ export default function GoogleCallbackPage() {
           return;
         }
 
-        // 기존 방식: code와 state로 백엔드에 요청
-        const code = searchParams.get('code');
-        const state = searchParams.get('state');
-
-        if (!code || !state) {
-          throw new Error('인가 코드 또는 state가 없습니다.');
-        }
-
-        // 백엔드로 code 전송
-        const data = await AuthService.handleGoogleCallback(code, state);
-
-        if (data.success && data.token) {
-          // Access Token은 Zustand 스토어(메모리)에 저장
-          // Refresh Token은 HttpOnly 쿠키에 저장 (handleGoogleCallback에서 이미 처리됨)
-          // 추가로 saveTokens를 호출하여 확실히 저장
-          await AuthService.saveTokens({
-            accessToken: data.token,
-            refreshToken: data.refreshToken,
-          });
-          
-          // 사용자 정보 저장
-          if (data.user) {
-            AuthService.saveUserInfo(data.user);
-          }
-
-          setStatus('success');
-          setMessage('로그인 성공!');
-          
-          // 2초 후 홈으로 리다이렉트
-          setTimeout(() => {
-            router.push('/');
-          }, 2000);
-        } else {
-          throw new Error(data.message || '로그인 실패');
-        }
+        throw new Error('네이버 로그인 처리 중 오류가 발생했습니다.');
       } catch (error: any) {
-        console.error('로그인 실패:', error);
+        console.error('네이버 로그인 실패:', error);
         setStatus('error');
-        setMessage(error.message || '로그인 처리 중 오류가 발생했습니다.');
+        setMessage(error.message || '네이버 로그인 처리 중 오류가 발생했습니다.');
       }
     };
 
@@ -93,13 +57,13 @@ export default function GoogleCallbackPage() {
   }, [searchParams, router]);
 
   return (
-    <div className="flex min-h-screen items-center justify-center bg-gradient-to-br from-blue-50 via-white to-green-50">
+    <div className="flex min-h-screen items-center justify-center bg-gradient-to-br from-green-50 via-white to-green-100">
       <div className="w-full max-w-md p-8 bg-white rounded-2xl shadow-xl">
         <div className="flex flex-col items-center">
           {status === 'loading' && (
             <>
-              <div className="w-16 h-16 border-4 border-blue-500 border-t-transparent rounded-full animate-spin mb-6"></div>
-              <h2 className="text-2xl font-semibold text-gray-800 mb-2">로그인 처리 중</h2>
+              <div className="w-16 h-16 border-4 border-green-500 border-t-transparent rounded-full animate-spin mb-6"></div>
+              <h2 className="text-2xl font-semibold text-gray-800 mb-2">네이버 로그인 처리 중</h2>
               <p className="text-gray-600 text-center">{message}</p>
             </>
           )}
@@ -128,7 +92,7 @@ export default function GoogleCallbackPage() {
               <p className="text-gray-600 text-center mb-6">{message}</p>
               <button
                 onClick={() => router.push('/')}
-                className="px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+                className="px-6 py-3 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors"
               >
                 홈으로 돌아가기
               </button>

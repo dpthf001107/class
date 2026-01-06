@@ -22,7 +22,7 @@ export async function GET(request: NextRequest) {
     // resolve는 상대 경로를 올바르게 처리합니다
     const resolvedPath = resolve(projectRoot, imagePath);
     
-    // 프로젝트 루트의 상위 디렉토리까지 허용 (cv.aifixr.site 접근을 위해)
+    // 프로젝트 루트의 상위 디렉토리까지 허용 (vision.elianayesol.com 접근을 위해)
     const workspaceRoot = resolve(projectRoot, '..');
     
     // Windows 경로 대소문자 문제 해결을 위해 모두 소문자로 변환
