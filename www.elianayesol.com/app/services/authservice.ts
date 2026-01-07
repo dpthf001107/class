@@ -175,6 +175,12 @@ class AuthServiceClass {
    * @returns Login response with token and user info
    */
   async handleGoogleCallback(code: string, state: string): Promise<LoginResponse> {
+    console.log('═══════════════════════════════════════════════════════');
+    console.log('🚀 [AuthService] handleGoogleCallback 시작');
+    console.log('   - code:', code.substring(0, Math.min(20, code.length)) + '...');
+    console.log('   - state:', state);
+    console.log('═══════════════════════════════════════════════════════');
+    
     try {
       const response = await fetch(`${API_BASE_URL}/api/oauth/google/login`, {
         method: 'POST',
@@ -191,15 +197,26 @@ class AuthServiceClass {
 
       const data: LoginResponse = await response.json();
       
+      console.log('═══════════════════════════════════════════════════════');
       console.log('🔄 [AuthService] handleGoogleCallback 응답 받음');
       console.log('   - success:', data.success);
       console.log('   - token 존재:', !!data.token);
+      if (data.token) {
+        console.log('   - token (일부):', data.token.substring(0, Math.min(50, data.token.length)) + '...');
+      }
       console.log('   - refreshToken 존재:', !!data.refreshToken);
       console.log('   - user 존재:', !!data.user);
+      if (data.user) {
+        console.log('   - user:', `${data.user.name} (${data.user.email})`);
+      }
+      console.log('═══════════════════════════════════════════════════════');
       
       // 성공 시 토큰 저장
       if (data.success && data.token) {
-        console.log('✅ [AuthService] 로그인 성공 - 토큰 저장 시작');
+        console.log('═══════════════════════════════════════════════════════');
+        console.log('✅ [AuthService] 로그인 성공 - Access Token 저장 시작');
+        console.log('═══════════════════════════════════════════════════════');
+        
         // Access Token은 Zustand Store에 저장
         await this.saveTokens({
           accessToken: data.token,
@@ -213,9 +230,12 @@ class AuthServiceClass {
         
         // 최종 확인
         const finalToken = getAuthStore().getState().accessToken;
+        console.log('═══════════════════════════════════════════════════════');
         console.log('🎯 [AuthService] handleGoogleCallback 최종 확인');
-        console.log('   - Zustand Store의 Access Token:', finalToken ? finalToken.substring(0, Math.min(50, finalToken.length)) + '...' : 'null');
-        console.log('   - isAuthenticated:', getAuthStore().getState().isAuthenticated);
+        console.log('   ✅ Zustand Store의 Access Token:', finalToken ? finalToken.substring(0, Math.min(50, finalToken.length)) + '...' : 'null');
+        console.log('   ✅ isAuthenticated:', getAuthStore().getState().isAuthenticated);
+        console.log('   ✅ 저장 성공 여부:', finalToken === data.token ? '✅ 성공' : '❌ 실패');
+        console.log('═══════════════════════════════════════════════════════');
       }
       
       return data;
@@ -260,7 +280,11 @@ class AuthServiceClass {
    */
   getAccessToken(): string | null {
     if (typeof window === 'undefined') return null;
-    return getAuthStore().getState().accessToken;
+    const token = getAuthStore().getState().accessToken;
+    console.log('🔍 [AuthService] getAccessToken 호출');
+    console.log('   - Access Token:', token ? token.substring(0, Math.min(50, token.length)) + '...' : 'null');
+    console.log('   - isAuthenticated:', getAuthStore().getState().isAuthenticated);
+    return token;
   }
 
   /**
@@ -288,7 +312,13 @@ class AuthServiceClass {
    */
   isLoggedIn(): boolean {
     if (typeof window === 'undefined') return false;
-    return getAuthStore().getState().isAuthenticated;
+    const state = getAuthStore().getState();
+    const isLoggedIn = state.isAuthenticated;
+    console.log('🔍 [AuthService] isLoggedIn 호출');
+    console.log('   - isAuthenticated:', isLoggedIn);
+    console.log('   - Access Token 존재:', !!state.accessToken);
+    console.log('   - UserInfo 존재:', !!state.userInfo);
+    return isLoggedIn;
   }
 
   /**
@@ -299,8 +329,11 @@ class AuthServiceClass {
   async saveTokens(tokens: AuthTokens, userInfo?: UserInfo): Promise<void> {
     if (typeof window === 'undefined') return;
     
+    console.log('═══════════════════════════════════════════════════════');
     console.log('📦 [AuthService] saveTokens 호출');
     console.log('   - Access Token (일부):', tokens.accessToken.substring(0, Math.min(50, tokens.accessToken.length)) + '...');
+    console.log('   - UserInfo:', userInfo ? `${userInfo.name} (${userInfo.email})` : '없음');
+    console.log('═══════════════════════════════════════════════════════');
     
     // Access Token만 Zustand 스토어(메모리)에 저장
     // Refresh Token은 서버에서 httpOnly 쿠키로 자동 설정되므로 클라이언트에서 처리 불필요
@@ -308,9 +341,11 @@ class AuthServiceClass {
     
     // 저장 후 확인
     const storedToken = getAuthStore().getState().accessToken;
+    console.log('═══════════════════════════════════════════════════════');
     console.log('✅ [AuthService] saveTokens 완료');
-    console.log('   - Zustand Store에 저장된 Token 확인:', storedToken ? storedToken.substring(0, Math.min(50, storedToken.length)) + '...' : 'null');
-    console.log('   - 저장 성공 여부:', storedToken === tokens.accessToken ? '✅ 성공' : '❌ 실패');
+    console.log('   ✅ Zustand Store에 저장된 Token 확인:', storedToken ? storedToken.substring(0, Math.min(50, storedToken.length)) + '...' : 'null');
+    console.log('   ✅ 저장 성공 여부:', storedToken === tokens.accessToken ? '✅ 성공' : '❌ 실패');
+    console.log('═══════════════════════════════════════════════════════');
   }
 
   /**
