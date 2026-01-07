@@ -31,11 +31,14 @@ function GoogleCallbackContent() {
         // 백엔드에서 리디렉션된 경우 (토큰이 이미 전달됨)
         if (success === 'true' && token) {
           // Access Token은 Zustand 스토어(메모리)에 저장
-          // Refresh Token은 HttpOnly 쿠키에 저장
           await AuthService.saveTokens({
             accessToken: token,
-            refreshToken: refreshToken || undefined,
           });
+          
+          // Refresh Token이 있으면 HttpOnly 쿠키에 저장
+          if (refreshToken) {
+            await AuthService.saveRefreshTokenToCookie(refreshToken);
+          }
 
           setStatus('success');
           setMessage('로그인 성공!');
@@ -56,22 +59,15 @@ function GoogleCallbackContent() {
         }
 
         // 백엔드로 code 전송
+        // handleGoogleCallback 내부에서 이미 토큰 저장 처리됨
         const data = await AuthService.handleGoogleCallback(code, state);
 
         if (data.success && data.token) {
-          // Access Token은 Zustand 스토어(메모리)에 저장
-          // Refresh Token은 HttpOnly 쿠키에 저장 (handleGoogleCallback에서 이미 처리됨)
-          // 추가로 saveTokens를 호출하여 확실히 저장
-          await AuthService.saveTokens({
-            accessToken: data.token,
-            refreshToken: data.refreshToken,
-          });
+          // handleGoogleCallback에서 이미 처리됨:
+          // - Access Token은 Zustand Store에 저장
+          // - Refresh Token은 httpOnly 쿠키에 저장
+          // - 사용자 정보도 저장됨
           
-          // 사용자 정보 저장
-          if (data.user) {
-            AuthService.saveUserInfo(data.user);
-          }
-
           setStatus('success');
           setMessage('로그인 성공!');
           

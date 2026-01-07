@@ -1,6 +1,7 @@
 import type { Metadata } from 'next'
 import { Navbar } from './components/Navbar'
 import { Footer } from './components/Footer'
+import { AuthStoreProvider } from './stores/auth.provider'
 import './styles/index.css'
 
 export const metadata: Metadata = {
@@ -16,11 +17,13 @@ export default function RootLayout({
   return (
     <html lang="en" suppressHydrationWarning>
       <body className="min-h-screen flex flex-col bg-white dark:bg-slate-950">
-        <Navbar />
-        <main className="flex-1">
-          {children}
-        </main>
-        <Footer />
+        <AuthStoreProvider>
+          <Navbar />
+          <main className="flex-1">
+            {children}
+          </main>
+          <Footer />
+        </AuthStoreProvider>
       </body>
     </html>
   )

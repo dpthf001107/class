@@ -2,10 +2,10 @@
  * Authentication Service
  * Handles OAuth login flows (Google, Kakao, Naver)
  * Access Token은 Zustand 스토어(메모리)에 저장됨
+ * Refresh Token은 httpOnly 쿠키에 저장 (Zustand를 거치지 않음)
  */
 
-import { useAuthStore } from '@/app/stores/authStore';
-import { UserInfo, AuthTokens } from '@/app/types/auth';
+import { getAuthStore, UserInfo, AuthTokens } from '@/app/stores/auth.store';
 
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8080';
 
@@ -191,9 +191,18 @@ class AuthServiceClass {
 
       const data: LoginResponse = await response.json();
       
-      // Refresh Token이 있으면 HttpOnly 쿠키에 저장
-      if (data.success && data.refreshToken) {
-        await this.saveRefreshTokenToCookie(data.refreshToken);
+      // 성공 시 토큰 저장
+      if (data.success && data.token) {
+        // Access Token은 Zustand Store에 저장
+        await this.saveTokens({
+          accessToken: data.token,
+        }, data.user);
+        
+        // Refresh Token이 있으면 httpOnly 쿠키에 저장
+        // 서버가 자동으로 쿠키를 설정하지 않는 경우를 대비
+        if (data.refreshToken) {
+          await this.saveRefreshTokenToCookie(data.refreshToken);
+        }
       }
       
       return data;
@@ -205,9 +214,10 @@ class AuthServiceClass {
 
   /**
    * Refresh Token을 HttpOnly 쿠키에 저장
+   * 주의: 일반적으로 서버에서 자동으로 쿠키를 설정하므로 이 메서드는 필요시에만 사용
    * @param refreshToken - Refresh Token
    */
-  private async saveRefreshTokenToCookie(refreshToken: string): Promise<void> {
+  async saveRefreshTokenToCookie(refreshToken: string): Promise<void> {
     if (typeof window === 'undefined') return;
     
     try {
@@ -237,18 +247,18 @@ class AuthServiceClass {
    */
   getAccessToken(): string | null {
     if (typeof window === 'undefined') return null;
-    return useAuthStore.getState().accessToken;
+    return getAuthStore().getState().accessToken;
   }
 
   /**
-   * Get stored refresh token from Zustand store (메모리)
+   * Get stored refresh token
    * 주의: Refresh Token은 HttpOnly 쿠키에 저장되므로 클라이언트에서 직접 읽을 수 없음
-   * 이 메서드는 메모리에 저장된 값만 반환 (일반적으로 null)
+   * 서버 측에서만 읽을 수 있음
    */
   getRefreshToken(): string | null {
     if (typeof window === 'undefined') return null;
-    // Refresh Token은 HttpOnly 쿠키에 저장되므로 메모리에는 없음
-    // 필요시 서버 측에서만 읽을 수 있음
+    // Refresh Token은 HttpOnly 쿠키에 저장되므로 클라이언트에서 접근 불가
+    // 서버 측에서만 읽을 수 있음
     return null;
   }
 
@@ -257,7 +267,7 @@ class AuthServiceClass {
    */
   getUserInfo(): UserInfo | null {
     if (typeof window === 'undefined') return null;
-    return useAuthStore.getState().userInfo;
+    return getAuthStore().getState().userInfo;
   }
 
   /**
@@ -265,41 +275,20 @@ class AuthServiceClass {
    */
   isLoggedIn(): boolean {
     if (typeof window === 'undefined') return false;
-    return useAuthStore.getState().isAuthenticated;
+    return getAuthStore().getState().isAuthenticated;
   }
 
   /**
    * Save tokens to Zustand store (메모리에만 저장)
-   * Refresh Token은 HttpOnly 쿠키에 저장
+   * Access Token만 Zustand Store에 저장
+   * Refresh Token은 서버에서 httpOnly 쿠키로 자동 설정됨 (Zustand를 거치지 않음)
    */
-  async saveTokens(tokens: AuthTokens): Promise<void> {
+  async saveTokens(tokens: AuthTokens, userInfo?: UserInfo): Promise<void> {
     if (typeof window === 'undefined') return;
     
-    // Access Token은 Zustand 스토어(메모리)에 저장
-    useAuthStore.getState().setTokens(tokens);
-    
-    // Refresh Token이 있으면 HttpOnly 쿠키에 저장
-    if (tokens.refreshToken) {
-      try {
-        const response = await fetch('/api/auth/set-refresh-token', {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-          },
-          credentials: 'include',
-          body: JSON.stringify({ refreshToken: tokens.refreshToken }),
-        });
-
-        if (!response.ok) {
-          console.warn('⚠️ Refresh Token 쿠키 저장 실패:', await response.text());
-        } else {
-          console.log('✅ Refresh Token이 HttpOnly 쿠키에 저장되었습니다.');
-        }
-      } catch (error) {
-        console.error('❌ Refresh Token 쿠키 저장 중 오류:', error);
-        // 쿠키 저장 실패해도 로그인은 계속 진행 (Access Token은 메모리에 저장됨)
-      }
-    }
+    // Access Token만 Zustand 스토어(메모리)에 저장
+    // Refresh Token은 서버에서 httpOnly 쿠키로 자동 설정되므로 클라이언트에서 처리 불필요
+    getAuthStore().getState().setAuth(tokens, userInfo);
   }
 
   /**
@@ -307,7 +296,7 @@ class AuthServiceClass {
    */
   saveUserInfo(userInfo: UserInfo): void {
     if (typeof window === 'undefined') return;
-    useAuthStore.getState().setUserInfo(userInfo);
+    getAuthStore().getState().setUserInfo(userInfo);
   }
 
   /**
@@ -316,8 +305,8 @@ class AuthServiceClass {
   async logout(): Promise<void> {
     if (typeof window === 'undefined') return;
     
-    // Zustand 스토어에서 인증 정보 제거
-    useAuthStore.getState().logout();
+    // Zustand 스토어에서 인증 정보 제거 (Access Token만 메모리에서 삭제)
+    getAuthStore().getState().logout();
     
     // HttpOnly 쿠키에서 Refresh Token 삭제
     try {
