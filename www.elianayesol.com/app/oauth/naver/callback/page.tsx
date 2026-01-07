@@ -29,11 +29,14 @@ function NaverCallbackContent() {
         // 백엔드에서 리디렉션된 경우 (토큰이 이미 전달됨)
         if (success === 'true' && token) {
           // Access Token은 Zustand 스토어(메모리)에 저장
-          // Refresh Token은 HttpOnly 쿠키에 저장
           await AuthService.saveTokens({
             accessToken: token,
-            refreshToken: refreshToken || undefined,
           });
+          
+          // Refresh Token이 있으면 HttpOnly 쿠키에 저장
+          if (refreshToken) {
+            await AuthService.saveRefreshTokenToCookie(refreshToken);
+          }
 
           setStatus('success');
           setMessage('네이버 로그인 성공!');
