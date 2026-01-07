@@ -47,8 +47,20 @@ export function AuthStoreProvider({ children }: AuthStoreProviderProps) {
 export function useAuthStore<T>(selector: (state: AuthStore) => T): T {
   const store = useContext(AuthStoreContext);
   
-  if (!store) {
-    throw new Error('useAuthStore must be used within AuthStoreProvider');
+  // SSR 중이거나 스토어가 없을 때 기본값 반환
+  if (!store || typeof window === 'undefined') {
+    // SSR 중에는 기본값 반환 (타입에 맞는 기본값)
+    const defaultState: AuthStore = {
+      accessToken: null,
+      userInfo: null,
+      isAuthenticated: false,
+      setAccessToken: () => {},
+      setUserInfo: () => {},
+      setAuth: () => {},
+      clearAuth: () => {},
+      logout: () => {},
+    };
+    return selector(defaultState);
   }
   
   return useStore(store, selector);
@@ -58,8 +70,18 @@ export function useAuthStore<T>(selector: (state: AuthStore) => T): T {
 export function useAuthStoreAll(): AuthStore {
   const store = useContext(AuthStoreContext);
   
-  if (!store) {
-    throw new Error('useAuthStore must be used within AuthStoreProvider');
+  // SSR 중이거나 스토어가 없을 때 기본값 반환
+  if (!store || typeof window === 'undefined') {
+    return {
+      accessToken: null,
+      userInfo: null,
+      isAuthenticated: false,
+      setAccessToken: () => {},
+      setUserInfo: () => {},
+      setAuth: () => {},
+      clearAuth: () => {},
+      logout: () => {},
+    };
   }
   
   return useStore(store);
