@@ -54,20 +54,11 @@ export const createAuthStore = () => {
 
     // Actions
     // Access Token 설정 (메모리에만 저장, 5-15분 유효)
-    setAccessToken: (token: string) => {
-      console.log('🔐 [Zustand Store] setAccessToken 호출 - Access Token 저장 중...');
-      console.log('   - Token (일부):', token.substring(0, Math.min(50, token.length)) + '...');
-      set((state) => {
-        const newState = {
-          accessToken: token,
-          isAuthenticated: true,
-        };
-        console.log('✅ [Zustand Store] setAccessToken 완료');
-        console.log('   - 저장된 Token 확인:', newState.accessToken ? newState.accessToken.substring(0, Math.min(50, newState.accessToken.length)) + '...' : 'null');
-        console.log('   - isAuthenticated:', newState.isAuthenticated);
-        return newState;
-      });
-    },
+    setAccessToken: (token: string) =>
+      set({
+        accessToken: token,
+        isAuthenticated: true,
+      }),
 
     // 사용자 정보 설정
     setUserInfo: (userInfo: UserInfo) =>
@@ -77,23 +68,13 @@ export const createAuthStore = () => {
 
     // 토큰과 사용자 정보 한번에 설정
     setAuth: (tokens: AuthTokens, userInfo?: UserInfo) => {
-      console.log('═══════════════════════════════════════════════════════');
-      console.log('🔐 [Zustand Store] setAuth 호출 - Access Token 저장 중...');
-      console.log('   - Token (일부):', tokens.accessToken.substring(0, Math.min(50, tokens.accessToken.length)) + '...');
-      console.log('   - UserInfo:', userInfo ? `${userInfo.name} (${userInfo.email})` : '없음');
-      console.log('═══════════════════════════════════════════════════════');
       set((state) => {
         const newState = {
           accessToken: tokens.accessToken,
           userInfo: userInfo || state.userInfo,
           isAuthenticated: true,
         };
-        console.log('═══════════════════════════════════════════════════════');
-        console.log('✅ [Zustand Store] setAuth 완료 - Access Token 저장 확인');
-        console.log('   ✅ 저장된 Token 확인:', newState.accessToken ? newState.accessToken.substring(0, Math.min(50, newState.accessToken.length)) + '...' : 'null');
-        console.log('   ✅ isAuthenticated:', newState.isAuthenticated);
-        console.log('   ✅ UserInfo:', newState.userInfo ? `${newState.userInfo.name} (${newState.userInfo.email})` : 'null');
-        console.log('═══════════════════════════════════════════════════════');
+        console.log('✅ [Zustand] Access Token 저장 완료:', newState.userInfo?.name || newState.userInfo?.email || 'User');
         return newState;
       });
     },
@@ -123,34 +104,13 @@ export type AuthStoreType = StoreApi<AuthStore>;
 // 클라이언트 사이드에서만 생성되도록 체크
 let authStoreInstance: AuthStoreType | null = null;
 
-let isFirstAccess = true;
-
 export const getAuthStore = (): AuthStoreType => {
   if (typeof window === 'undefined') {
     throw new Error('AuthStore can only be accessed on the client side');
   }
   
   if (!authStoreInstance) {
-    console.log('🏪 [Zustand Store] 스토어 인스턴스 생성 중...');
     authStoreInstance = createAuthStore();
-    console.log('✅ [Zustand Store] 스토어 인스턴스 생성 완료');
-    
-    // 스토어 생성 시 초기 상태 확인
-    const currentState = authStoreInstance.getState();
-    console.log('📊 [Zustand Store] 초기 상태');
-    console.log('   - Access Token:', currentState.accessToken ? currentState.accessToken.substring(0, Math.min(50, currentState.accessToken.length)) + '...' : 'null');
-    console.log('   - isAuthenticated:', currentState.isAuthenticated);
-    console.log('   - UserInfo:', currentState.userInfo ? `${currentState.userInfo.name} (${currentState.userInfo.email})` : 'null');
-  } else if (isFirstAccess) {
-    // 첫 접근 시에만 현재 상태 확인 (이미 로그인된 경우)
-    const currentState = authStoreInstance.getState();
-    if (currentState.accessToken) {
-      console.log('📊 [Zustand Store] 기존 상태 확인 (이미 로그인됨)');
-      console.log('   - Access Token:', currentState.accessToken.substring(0, Math.min(50, currentState.accessToken.length)) + '...');
-      console.log('   - isAuthenticated:', currentState.isAuthenticated);
-      console.log('   - UserInfo:', currentState.userInfo ? `${currentState.userInfo.name} (${currentState.userInfo.email})` : 'null');
-    }
-    isFirstAccess = false;
   }
   
   return authStoreInstance;

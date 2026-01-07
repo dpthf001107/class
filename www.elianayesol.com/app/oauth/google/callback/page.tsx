@@ -60,12 +60,6 @@ function GoogleCallbackContent() {
 
         // 백엔드로 code 전송
         // handleGoogleCallback 내부에서 이미 토큰 저장 처리됨
-        console.log('═══════════════════════════════════════════════════════');
-        console.log('🔄 [Callback Page] handleGoogleCallback 호출 시작');
-        console.log('   - code:', code.substring(0, Math.min(20, code.length)) + '...');
-        console.log('   - state:', state);
-        console.log('═══════════════════════════════════════════════════════');
-        
         const data = await AuthService.handleGoogleCallback(code, state);
 
         if (data.success && data.token) {

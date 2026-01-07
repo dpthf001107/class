@@ -1,4 +1,3 @@
-import { useEffect } from 'react';
 import { useAuthStore } from '@/app/stores/auth.provider';
 import { UserInfo, AuthTokens } from '@/app/stores/auth.store';
 
@@ -8,18 +7,6 @@ export const useAuth = () => {
   const accessToken = useAuthStore((state) => state.accessToken);
   const userInfo = useAuthStore((state) => state.userInfo);
   const isAuthenticated = useAuthStore((state) => state.isAuthenticated);
-  
-  // 디버깅: 상태 변경 시 로그 출력 (한 번만 실행되도록)
-  useEffect(() => {
-    if (typeof window !== 'undefined' && accessToken) {
-      console.log('═══════════════════════════════════════════════════════');
-      console.log('🔍 [useAuth] Access Token 상태 확인');
-      console.log('   ✅ Access Token:', accessToken.substring(0, Math.min(50, accessToken.length)) + '...');
-      console.log('   ✅ isAuthenticated:', isAuthenticated);
-      console.log('   ✅ userInfo:', userInfo ? `${userInfo.name} (${userInfo.email})` : 'null');
-      console.log('═══════════════════════════════════════════════════════');
-    }
-  }, [accessToken, isAuthenticated, userInfo]);
   
   // Actions
   const setAccessToken = useAuthStore((state) => state.setAccessToken);
