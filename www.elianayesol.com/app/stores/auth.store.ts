@@ -74,7 +74,10 @@ export const createAuthStore = () => {
           userInfo: userInfo || state.userInfo,
           isAuthenticated: true,
         };
-        console.log('✅ [Zustand] Access Token 저장 완료:', newState.userInfo?.name || newState.userInfo?.email || 'User');
+        console.log('✅ [Zustand] Access Token 저장 완료');
+        console.log('   - Token:', tokens.accessToken.substring(0, Math.min(50, tokens.accessToken.length)) + '...');
+        console.log('   - User:', newState.userInfo?.name || newState.userInfo?.email || 'User');
+        console.log('   - isAuthenticated:', newState.isAuthenticated);
         return newState;
       });
     },

@@ -194,6 +194,7 @@ class AuthServiceClass {
       // 성공 시 토큰 저장
       if (data.success && data.token) {
         console.log('✅ [로그인] Google 로그인 성공');
+        console.log('   - Access Token:', data.token.substring(0, Math.min(50, data.token.length)) + '...');
         
         // Access Token은 Zustand Store에 저장
         await this.saveTokens({
@@ -204,6 +205,10 @@ class AuthServiceClass {
         if (data.refreshToken) {
           await this.saveRefreshTokenToCookie(data.refreshToken);
         }
+        
+        // 저장 확인
+        const storedToken = getAuthStore().getState().accessToken;
+        console.log('   - Zustand 저장 확인:', storedToken ? storedToken.substring(0, Math.min(50, storedToken.length)) + '...' : 'null');
       }
       
       return data;
