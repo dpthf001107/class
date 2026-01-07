@@ -54,11 +54,20 @@ export const createAuthStore = () => {
 
     // Actions
     // Access Token 설정 (메모리에만 저장, 5-15분 유효)
-    setAccessToken: (token: string) =>
-      set({
-        accessToken: token,
-        isAuthenticated: true,
-      }),
+    setAccessToken: (token: string) => {
+      console.log('🔐 [Zustand Store] setAccessToken 호출 - Access Token 저장 중...');
+      console.log('   - Token (일부):', token.substring(0, Math.min(50, token.length)) + '...');
+      set((state) => {
+        const newState = {
+          accessToken: token,
+          isAuthenticated: true,
+        };
+        console.log('✅ [Zustand Store] setAccessToken 완료');
+        console.log('   - 저장된 Token 확인:', newState.accessToken ? newState.accessToken.substring(0, Math.min(50, newState.accessToken.length)) + '...' : 'null');
+        console.log('   - isAuthenticated:', newState.isAuthenticated);
+        return newState;
+      });
+    },
 
     // 사용자 정보 설정
     setUserInfo: (userInfo: UserInfo) =>
@@ -67,12 +76,22 @@ export const createAuthStore = () => {
       }),
 
     // 토큰과 사용자 정보 한번에 설정
-    setAuth: (tokens: AuthTokens, userInfo?: UserInfo) =>
-      set((state) => ({
-        accessToken: tokens.accessToken,
-        userInfo: userInfo || state.userInfo,
-        isAuthenticated: true,
-      })),
+    setAuth: (tokens: AuthTokens, userInfo?: UserInfo) => {
+      console.log('🔐 [Zustand Store] setAuth 호출 - Access Token 저장 중...');
+      console.log('   - Token (일부):', tokens.accessToken.substring(0, Math.min(50, tokens.accessToken.length)) + '...');
+      console.log('   - UserInfo:', userInfo ? `${userInfo.name} (${userInfo.email})` : '없음');
+      set((state) => {
+        const newState = {
+          accessToken: tokens.accessToken,
+          userInfo: userInfo || state.userInfo,
+          isAuthenticated: true,
+        };
+        console.log('✅ [Zustand Store] setAuth 완료 - Access Token 저장 확인');
+        console.log('   - 저장된 Token 확인:', newState.accessToken ? newState.accessToken.substring(0, Math.min(50, newState.accessToken.length)) + '...' : 'null');
+        console.log('   - isAuthenticated:', newState.isAuthenticated);
+        return newState;
+      });
+    },
 
     // 인증 정보 초기화 (메모리에서 제거)
     clearAuth: () =>

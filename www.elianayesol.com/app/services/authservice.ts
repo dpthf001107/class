@@ -191,8 +191,15 @@ class AuthServiceClass {
 
       const data: LoginResponse = await response.json();
       
+      console.log('🔄 [AuthService] handleGoogleCallback 응답 받음');
+      console.log('   - success:', data.success);
+      console.log('   - token 존재:', !!data.token);
+      console.log('   - refreshToken 존재:', !!data.refreshToken);
+      console.log('   - user 존재:', !!data.user);
+      
       // 성공 시 토큰 저장
       if (data.success && data.token) {
+        console.log('✅ [AuthService] 로그인 성공 - 토큰 저장 시작');
         // Access Token은 Zustand Store에 저장
         await this.saveTokens({
           accessToken: data.token,
@@ -203,6 +210,12 @@ class AuthServiceClass {
         if (data.refreshToken) {
           await this.saveRefreshTokenToCookie(data.refreshToken);
         }
+        
+        // 최종 확인
+        const finalToken = getAuthStore().getState().accessToken;
+        console.log('🎯 [AuthService] handleGoogleCallback 최종 확인');
+        console.log('   - Zustand Store의 Access Token:', finalToken ? finalToken.substring(0, Math.min(50, finalToken.length)) + '...' : 'null');
+        console.log('   - isAuthenticated:', getAuthStore().getState().isAuthenticated);
       }
       
       return data;
@@ -286,9 +299,18 @@ class AuthServiceClass {
   async saveTokens(tokens: AuthTokens, userInfo?: UserInfo): Promise<void> {
     if (typeof window === 'undefined') return;
     
+    console.log('📦 [AuthService] saveTokens 호출');
+    console.log('   - Access Token (일부):', tokens.accessToken.substring(0, Math.min(50, tokens.accessToken.length)) + '...');
+    
     // Access Token만 Zustand 스토어(메모리)에 저장
     // Refresh Token은 서버에서 httpOnly 쿠키로 자동 설정되므로 클라이언트에서 처리 불필요
     getAuthStore().getState().setAuth(tokens, userInfo);
+    
+    // 저장 후 확인
+    const storedToken = getAuthStore().getState().accessToken;
+    console.log('✅ [AuthService] saveTokens 완료');
+    console.log('   - Zustand Store에 저장된 Token 확인:', storedToken ? storedToken.substring(0, Math.min(50, storedToken.length)) + '...' : 'null');
+    console.log('   - 저장 성공 여부:', storedToken === tokens.accessToken ? '✅ 성공' : '❌ 실패');
   }
 
   /**
